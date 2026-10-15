@@ -6,6 +6,7 @@ import com.yugahashimoto.andcode.core.api.OpenCodeAgent
 import com.yugahashimoto.andcode.core.api.OpenCodeProvider
 import com.yugahashimoto.andcode.core.api.ProviderAuthMethod
 import com.yugahashimoto.andcode.core.api.ProviderCatalog
+import com.yugahashimoto.andcode.core.api.selectablePrimaryAgents
 import com.yugahashimoto.andcode.core.security.SecretRedaction
 import com.yugahashimoto.andcode.data.connection.SecureSettingsRepository
 import com.yugahashimoto.andcode.data.repository.RuntimeCatalogRepository
@@ -204,7 +205,7 @@ class SettingsViewModel(
                 providers = core.runtime.providers.all.filter { it.id in chatConnected },
                 availableProviders = managed.all,
                 connectedProviderIds = (managed.connected.toSet() + oauth.locallyConnected) - oauth.locallyDisconnected,
-                agents = core.runtime.agents.filter { it.mode == null || it.mode == "primary" },
+                agents = core.runtime.agents.selectablePrimaryAgents(),
                 providerId = core.preferences.providerId,
                 modelId = core.preferences.modelId,
                 agentId = core.preferences.agentId,

@@ -43,6 +43,25 @@ class AssistantProfileTest {
     }
 
     @Test
+    fun `missing agent follows the server's default_agent rather than build`() {
+        val result =
+            AssistantProfileResolver.resolve(
+                profile = AssistantProfile(backendId = "mac"),
+                connections = listOf(connection),
+                providers = listOf(provider),
+                defaultModels = mapOf("opencode" to "free"),
+                agents =
+                    listOf(
+                        OpenCodeAgent(name = "orchestrator", mode = "primary"),
+                        OpenCodeAgent(name = "build", mode = "primary"),
+                        OpenCodeAgent(name = "fixer", mode = "subagent"),
+                    ),
+            ).getOrThrow()
+
+        assertEquals("orchestrator", result.agentId)
+    }
+
+    @Test
     fun `deleted backend produces configuration error`() {
         val result =
             AssistantProfileResolver.resolve(
