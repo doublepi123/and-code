@@ -40,7 +40,7 @@ class OpenCodeApiClient(
     private val httpClient: OkHttpClient = defaultHttpClient(profile),
     private val json: Json = defaultJson,
     private val eventParser: OpenCodeEventParser = OpenCodeEventParser(json),
-) {
+) : OpenCodeApi {
     // Resolved lazily: constructing a client must never throw. Clients are built while assembling
     // the runtime target list, which happens on the main thread at app start and whenever a
     // connection is saved, so an endpoint the current rules reject has to surface as a failed
@@ -56,21 +56,21 @@ class OpenCodeApiClient(
             .callTimeout(PROVIDER_AUTH_TIMEOUT_MINUTES, TimeUnit.MINUTES)
             .build()
 
-    suspend fun health(): OpenCodeHealth = get("global/health")
+    override suspend fun health(): OpenCodeHealth = get("global/health")
 
     /**
      * Active (non-archived) sessions. The server keeps archived sessions in `GET /session`
      * forever — its only archive marker is `time.archived` on each entry — so the filter lives
      * here; every chat list the app shows is fed from this one method.
      */
-    suspend fun sessions(directory: String? = null): List<OpenCodeSession> =
+    override suspend fun sessions(directory: String?): List<OpenCodeSession> =
         getList<OpenCodeSession>("session", query("directory" to directory)).filter { it.time.archived == null }
 
-    suspend fun session(sessionId: String): OpenCodeSession = get("session/${encodePath(sessionId)}")
+    override suspend fun session(sessionId: String): OpenCodeSession = get("session/${encodePath(sessionId)}")
 
-    suspend fun createSession(
-        title: String? = null,
-        directory: String? = null,
+    override suspend fun createSession(
+        title: String?,
+        directory: String?,
     ): OpenCodeSession {
         val body =
             buildJsonObject {
@@ -83,7 +83,7 @@ class OpenCodeApiClient(
         )
     }
 
-    suspend fun messages(sessionId: String): List<OpenCodeMessage> = getList("session/${encodePath(sessionId)}/message")
+    override suspend fun messages(sessionId: String): List<OpenCodeMessage> = getList("session/${encodePath(sessionId)}/message")
 
     /**
      * Permanently removes one message (and all of its parts) from a session, without reverting any
@@ -91,26 +91,26 @@ class OpenCodeApiClient(
      * `DELETE /session/:id/message/:messageId` route documents. The server refuses this while the
      * session is busy, so callers must only delete out of an idle session.
      */
-    suspend fun deleteMessage(
+    override suspend fun deleteMessage(
         sessionId: String,
         messageId: String,
     ): Boolean = delete("session/${encodePath(sessionId)}/message/${encodePath(messageId)}")
 
-    suspend fun providers(): ProviderCatalog = get("provider")
+    override suspend fun providers(): ProviderCatalog = get("provider")
 
-    suspend fun agents(): List<OpenCodeAgent> = getList("agent")
+    override suspend fun agents(): List<OpenCodeAgent> = getList("agent")
 
-    suspend fun providerAuthMethods(): Map<String, List<ProviderAuthMethod>> =
+    override suspend fun providerAuthMethods(): Map<String, List<ProviderAuthMethod>> =
         withContext(Dispatchers.IO) {
             execute(requestBuilder("provider/auth").get().build()) { body ->
                 json.decodeFromString<Map<String, List<ProviderAuthMethod>>>(body)
             }
         }
 
-    suspend fun authorizeProvider(
+    override suspend fun authorizeProvider(
         providerId: String,
         methodIndex: Int,
-        inputs: Map<String, String> = emptyMap(),
+        inputs: Map<String, String>,
     ): ProviderAuthAuthorization =
         post(
             "provider/${encodePath(providerId)}/oauth/authorize",
@@ -127,10 +127,10 @@ class OpenCodeApiClient(
             },
         )
 
-    suspend fun setProviderApiKey(
+    override suspend fun setProviderApiKey(
         providerId: String,
         apiKey: String,
-        metadata: Map<String, String> = emptyMap(),
+        metadata: Map<String, String>,
     ): Boolean =
         put(
             "auth/${encodePath(providerId)}",
@@ -148,9 +148,9 @@ class OpenCodeApiClient(
             },
         )
 
-    suspend fun removeProviderAuth(providerId: String): Boolean = delete("auth/${encodePath(providerId)}")
+    override suspend fun removeProviderAuth(providerId: String): Boolean = delete("auth/${encodePath(providerId)}")
 
-    suspend fun completeProviderOAuth(
+    override suspend fun completeProviderOAuth(
         providerId: String,
         methodIndex: Int,
         code: String?,
@@ -170,18 +170,18 @@ class OpenCodeApiClient(
             }
         }
 
-    suspend fun projects(directory: String? = null): List<OpenCodeProject> = getList("project", query("directory" to directory))
+    override suspend fun projects(directory: String?): List<OpenCodeProject> = getList("project", query("directory" to directory))
 
-    suspend fun currentProject(directory: String? = null): OpenCodeProject = get("project/current", query("directory" to directory))
+    override suspend fun currentProject(directory: String?): OpenCodeProject = get("project/current", query("directory" to directory))
 
-    suspend fun pathInfo(directory: String? = null): OpenCodePathInfo = get("path", query("directory" to directory))
+    override suspend fun pathInfo(directory: String?): OpenCodePathInfo = get("path", query("directory" to directory))
 
-    suspend fun files(
+    override suspend fun files(
         directory: String,
         path: String,
     ): List<OpenCodeFileNode> = getList("file", query("directory" to directory, "path" to path))
 
-    suspend fun fileContent(
+    override suspend fun fileContent(
         directory: String,
         path: String,
     ): OpenCodeFileContent =
@@ -190,19 +190,19 @@ class OpenCodeApiClient(
             query("directory" to directory, "path" to path),
         )
 
-    suspend fun fileStatus(directory: String): List<OpenCodeFileChange> = getList("file/status", query("directory" to directory))
+    override suspend fun fileStatus(directory: String): List<OpenCodeFileChange> = getList("file/status", query("directory" to directory))
 
-    suspend fun searchText(
+    override suspend fun searchText(
         directory: String,
         pattern: String,
     ): List<OpenCodeSearchMatch> = getList("find", query("directory" to directory, "pattern" to pattern))
 
-    suspend fun findFiles(
+    override suspend fun findFiles(
         directory: String,
         queryText: String,
-        includeDirectories: Boolean? = null,
-        type: String? = null,
-        limit: Int? = null,
+        includeDirectories: Boolean?,
+        type: String?,
+        limit: Int?,
     ): List<String> =
         getList(
             "find/file",
@@ -215,40 +215,40 @@ class OpenCodeApiClient(
             ),
         )
 
-    suspend fun vcsInfo(directory: String): OpenCodeVcsInfo = get("vcs", query("directory" to directory))
+    override suspend fun vcsInfo(directory: String): OpenCodeVcsInfo = get("vcs", query("directory" to directory))
 
-    suspend fun vcsStatus(directory: String): List<OpenCodeFileChange> = getList("vcs/status", query("directory" to directory))
+    override suspend fun vcsStatus(directory: String): List<OpenCodeFileChange> = getList("vcs/status", query("directory" to directory))
 
-    suspend fun vcsDiff(
+    override suspend fun vcsDiff(
         directory: String,
-        mode: String = "git",
-        context: Int? = null,
+        mode: String,
+        context: Int?,
     ): List<OpenCodeFileChange> =
         getList(
             "vcs/diff",
             query("directory" to directory, "mode" to mode, "context" to context?.toString()),
         )
 
-    suspend fun sessionDiff(
+    override suspend fun sessionDiff(
         sessionId: String,
-        directory: String? = null,
-        messageId: String? = null,
+        directory: String?,
+        messageId: String?,
     ): List<OpenCodeFileChange> =
         getList(
             "session/${encodePath(sessionId)}/diff",
             query("directory" to directory, "messageID" to messageId),
         )
 
-    suspend fun sessionTodo(
+    override suspend fun sessionTodo(
         sessionId: String,
-        directory: String? = null,
+        directory: String?,
     ): List<OpenCodeTodo> =
         getList(
             "session/${encodePath(sessionId)}/todo",
             query("directory" to directory),
         )
 
-    suspend fun promptAsync(
+    override suspend fun promptAsync(
         sessionId: String,
         request: PromptRequest,
     ) {
@@ -293,7 +293,7 @@ class OpenCodeApiClient(
         postWithoutResponse("session/${encodePath(sessionId)}/prompt_async", body)
     }
 
-    suspend fun summarizeSession(
+    override suspend fun summarizeSession(
         sessionId: String,
         providerId: String,
         modelId: String,
@@ -306,12 +306,12 @@ class OpenCodeApiClient(
             },
         )
 
-    suspend fun abortSession(sessionId: String): Boolean = post("session/${encodePath(sessionId)}/abort", JsonObject(emptyMap()))
+    override suspend fun abortSession(sessionId: String): Boolean = post("session/${encodePath(sessionId)}/abort", JsonObject(emptyMap()))
 
-    suspend fun renameSession(
+    override suspend fun renameSession(
         sessionId: String,
         title: String,
-        directory: String? = null,
+        directory: String?,
     ): OpenCodeSession {
         val body = buildJsonObject { put("title", title) }
         return patch(
@@ -321,9 +321,9 @@ class OpenCodeApiClient(
         )
     }
 
-    suspend fun deleteSession(
+    override suspend fun deleteSession(
         sessionId: String,
-        directory: String? = null,
+        directory: String?,
     ): Boolean =
         delete(
             "session/${encodePath(sessionId)}",
@@ -336,9 +336,9 @@ class OpenCodeApiClient(
      * silently ignores that unknown key, so the call returned 200, archived nothing, and the
      * auto-archive settings never moved a single OpenCode chat out of the drawer.
      */
-    suspend fun archiveSession(
+    override suspend fun archiveSession(
         sessionId: String,
-        directory: String? = null,
+        directory: String?,
     ): OpenCodeSession {
         val body =
             buildJsonObject {
@@ -351,7 +351,7 @@ class OpenCodeApiClient(
         )
     }
 
-    suspend fun mcpServers(): List<McpServer> =
+    override suspend fun mcpServers(): List<McpServer> =
         withContext(Dispatchers.IO) {
             execute(requestBuilder("mcp").get().build()) { body ->
                 val root = json.parseToJsonElement(body).jsonObject
@@ -376,22 +376,22 @@ class OpenCodeApiClient(
             }
         }
 
-    suspend fun addMcpServer(body: JsonObject): McpServer {
+    override suspend fun addMcpServer(body: JsonObject): McpServer {
         val statuses: Map<String, McpAuthStatus> = post("mcp", body)
         val name = (body["name"] as? JsonPrimitive)?.content ?: error("MCP server name is missing")
         val status = statuses[name]
         return McpServer(name = name, status = status?.status, error = status?.error)
     }
 
-    suspend fun connectMcpServer(name: String): Boolean = post("mcp/${encodePath(name)}/connect", JsonObject(emptyMap()))
+    override suspend fun connectMcpServer(name: String): Boolean = post("mcp/${encodePath(name)}/connect", JsonObject(emptyMap()))
 
-    suspend fun disconnectMcpServer(name: String): Boolean = post("mcp/${encodePath(name)}/disconnect", JsonObject(emptyMap()))
+    override suspend fun disconnectMcpServer(name: String): Boolean = post("mcp/${encodePath(name)}/disconnect", JsonObject(emptyMap()))
 
-    suspend fun removeMcpAuth(name: String): McpAuthRemoval = delete("mcp/${encodePath(name)}/auth")
+    override suspend fun removeMcpAuth(name: String): McpAuthRemoval = delete("mcp/${encodePath(name)}/auth")
 
-    suspend fun mcpAuth(name: String): McpAuthStart = post("mcp/${encodePath(name)}/auth", JsonObject(emptyMap()))
+    override suspend fun mcpAuth(name: String): McpAuthStart = post("mcp/${encodePath(name)}/auth", JsonObject(emptyMap()))
 
-    suspend fun mcpAuthCallback(
+    override suspend fun mcpAuthCallback(
         name: String,
         code: String,
     ): McpAuthStatus {
@@ -399,14 +399,14 @@ class OpenCodeApiClient(
         return post("mcp/${encodePath(name)}/auth/callback", body)
     }
 
-    suspend fun config(): JsonElement =
+    override suspend fun config(): JsonElement =
         withContext(Dispatchers.IO) {
             execute(requestBuilder("config").get().build()) { body ->
                 json.parseToJsonElement(body)
             }
         }
 
-    suspend fun updateConfig(patch: JsonObject): JsonElement =
+    override suspend fun updateConfig(patch: JsonObject): JsonElement =
         withContext(Dispatchers.IO) {
             val request =
                 requestBuilder("config")
@@ -417,19 +417,19 @@ class OpenCodeApiClient(
             }
         }
 
-    suspend fun configProviders(): List<ConfiguredProvider> = getList("config/providers")
+    override suspend fun configProviders(): List<ConfiguredProvider> = getList("config/providers")
 
-    suspend fun commands(): List<OpenCodeCommand> = getList("command")
+    override suspend fun commands(): List<OpenCodeCommand> = getList("command")
 
-    suspend fun skills(): List<OpenCodeSkill> = getList("skill")
+    override suspend fun skills(): List<OpenCodeSkill> = getList("skill")
 
-    suspend fun executeCommand(
+    override suspend fun executeCommand(
         sessionId: String,
         command: String,
-        arguments: String = "",
-        agent: String? = null,
-        model: String? = null,
-        variant: String? = null,
+        arguments: String,
+        agent: String?,
+        model: String?,
+        variant: String?,
     ) {
         val body =
             buildJsonObject {
@@ -442,11 +442,11 @@ class OpenCodeApiClient(
         postWithoutResponse("session/${encodePath(sessionId)}/command", body)
     }
 
-    suspend fun respondPermission(
+    override suspend fun respondPermission(
         sessionId: String,
         permissionId: String,
         response: String,
-        remember: Boolean = false,
+        remember: Boolean,
     ): Boolean {
         val apiResponse = if (remember && response == "once") "always" else response
         val body =
@@ -467,10 +467,10 @@ class OpenCodeApiClient(
      * other workspace is invisible without it and the reply comes back as
      * `QuestionNotFoundError`. Pass the directory the question was asked in.
      */
-    suspend fun answerQuestion(
+    override suspend fun answerQuestion(
         requestId: String,
         answers: List<List<String>>,
-        directory: String? = null,
+        directory: String?,
     ): Boolean {
         val body =
             buildJsonObject {
@@ -492,9 +492,9 @@ class OpenCodeApiClient(
     }
 
     /** Declines a question outright, which fails the waiting tool call without killing the turn. */
-    suspend fun rejectQuestion(
+    override suspend fun rejectQuestion(
         requestId: String,
-        directory: String? = null,
+        directory: String?,
     ): Boolean =
         post(
             "question/${encodePath(requestId)}/reject",
@@ -508,7 +508,7 @@ class OpenCodeApiClient(
      * opened after the fact — has to be recovered here or the turn stays blocked with nothing on
      * screen to unblock it.
      */
-    suspend fun pendingQuestions(directory: String? = null): List<QuestionRequest> =
+    override suspend fun pendingQuestions(directory: String?): List<QuestionRequest> =
         getList<QuestionRequest>("question", query("directory" to directory))
             .map { request -> request.copy(directory = request.directory ?: directory) }
 
@@ -520,7 +520,7 @@ class OpenCodeApiClient(
      * forever on a request that never reaches the client. Subscribe to the cross-instance
      * `/global/event` stream instead, and fall back only for servers that predate it.
      */
-    fun events(): Flow<OpenCodeEvent> =
+    override fun events(): Flow<OpenCodeEvent> =
         flow { emitAll(singleEventStream(eventPath)) }.retryWhen { cause, attempt ->
             if (
                 eventPath == GLOBAL_EVENT_PATH &&

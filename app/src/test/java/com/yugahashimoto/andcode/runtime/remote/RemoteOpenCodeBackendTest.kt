@@ -1,5 +1,6 @@
 package com.yugahashimoto.andcode.runtime.remote
 
+import com.yugahashimoto.andcode.core.api.OpenCodeApiClient
 import com.yugahashimoto.andcode.core.api.PromptRequest
 import com.yugahashimoto.andcode.data.connection.ConnectionProfile
 import com.yugahashimoto.andcode.runtime.PermissionResponse
@@ -34,17 +35,18 @@ class RemoteOpenCodeBackendTest {
             server.enqueue(MockResponse().setResponseCode(204))
             server.enqueue(MockResponse().setBody("true"))
 
-            val backend =
-                RemoteOpenCodeBackend(
-                    ConnectionProfile(
-                        id = "mac",
-                        name = "Mac mini",
-                        baseUrl = server.url("/").toString(),
-                        username = "opencode",
-                        password = "pw",
-                        allowInsecureLan = true,
-                    ),
+            val profile =
+                ConnectionProfile(
+                    id = "mac",
+                    name = "Mac mini",
+                    baseUrl = server.url("/").toString(),
+                    username = "opencode",
+                    password = "pw",
+                    allowInsecureLan = true,
                 )
+            // Pinned to the V1 client: these queued responses are V1 routes, and auto-detection would
+            // spend the first one on the `api/info` probe.
+            val backend = RemoteOpenCodeBackend(profile, OpenCodeApiClient(profile))
 
             assertEquals("1.17.20", backend.health().version)
             val session = backend.createSession("Mobile")
@@ -65,17 +67,16 @@ class RemoteOpenCodeBackendTest {
         runBlocking {
             server.enqueue(MockResponse().setBody("true"))
 
-            val backend =
-                RemoteOpenCodeBackend(
-                    ConnectionProfile(
-                        id = "mac",
-                        name = "Mac mini",
-                        baseUrl = server.url("/").toString(),
-                        username = "opencode",
-                        password = "pw",
-                        allowInsecureLan = true,
-                    ),
+            val profile =
+                ConnectionProfile(
+                    id = "mac",
+                    name = "Mac mini",
+                    baseUrl = server.url("/").toString(),
+                    username = "opencode",
+                    password = "pw",
+                    allowInsecureLan = true,
                 )
+            val backend = RemoteOpenCodeBackend(profile, OpenCodeApiClient(profile))
 
             assertTrue(backend.answerQuestion("q-1", listOf(listOf("src"), listOf("docs", "tests")), "/workspace/repo"))
 

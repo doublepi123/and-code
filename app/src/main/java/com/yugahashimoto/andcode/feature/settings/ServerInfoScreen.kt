@@ -186,7 +186,7 @@ private fun ConfigTab(
                             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.save))
                         }
                     }
-                } else {
+                } else if (state.configEditable) {
                     IconButton(onClick = viewModel::startEditConfig) {
                         Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.server_info_edit_config))
                     }

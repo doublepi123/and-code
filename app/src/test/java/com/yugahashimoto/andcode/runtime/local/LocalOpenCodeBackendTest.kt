@@ -1,5 +1,6 @@
 package com.yugahashimoto.andcode.runtime.local
 
+import com.yugahashimoto.andcode.core.api.OpenCodeApiClient
 import com.yugahashimoto.andcode.data.connection.ConnectionProfile
 import com.yugahashimoto.andcode.runtime.remote.RemoteOpenCodeBackend
 import kotlinx.coroutines.runBlocking
@@ -65,9 +66,8 @@ class LocalOpenCodeBackendTest {
                 LocalOpenCodeBackend(
                     portProvider = { server.port },
                     backendFactory = { profile ->
-                        RemoteOpenCodeBackend(
-                            profile.copy(baseUrl = server.url("/").toString()),
-                        )
+                        val pinned = profile.copy(baseUrl = server.url("/").toString())
+                        RemoteOpenCodeBackend(pinned, OpenCodeApiClient(pinned))
                     },
                 )
 
@@ -114,9 +114,8 @@ class LocalOpenCodeBackendTest {
                     portProvider = { server.port },
                     passwordProvider = { "local-server-secret" },
                     backendFactory = { profile ->
-                        RemoteOpenCodeBackend(
-                            profile.copy(baseUrl = server.url("/").toString()),
-                        )
+                        val pinned = profile.copy(baseUrl = server.url("/").toString())
+                        RemoteOpenCodeBackend(pinned, OpenCodeApiClient(pinned))
                     },
                 )
 

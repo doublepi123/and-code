@@ -6,7 +6,7 @@ import com.yugahashimoto.andcode.core.api.McpAuthStart
 import com.yugahashimoto.andcode.core.api.McpAuthStatus
 import com.yugahashimoto.andcode.core.api.McpServer
 import com.yugahashimoto.andcode.core.api.OpenCodeAgent
-import com.yugahashimoto.andcode.core.api.OpenCodeApiClient
+import com.yugahashimoto.andcode.core.api.OpenCodeApi
 import com.yugahashimoto.andcode.core.api.OpenCodeCommand
 import com.yugahashimoto.andcode.core.api.OpenCodeEvent
 import com.yugahashimoto.andcode.core.api.OpenCodeFileChange
@@ -16,12 +16,14 @@ import com.yugahashimoto.andcode.core.api.OpenCodeHealth
 import com.yugahashimoto.andcode.core.api.OpenCodeMessage
 import com.yugahashimoto.andcode.core.api.OpenCodePathInfo
 import com.yugahashimoto.andcode.core.api.OpenCodeProject
+import com.yugahashimoto.andcode.core.api.OpenCodeProtocol
 import com.yugahashimoto.andcode.core.api.OpenCodeSearchMatch
 import com.yugahashimoto.andcode.core.api.OpenCodeSession
 import com.yugahashimoto.andcode.core.api.OpenCodeSkill
 import com.yugahashimoto.andcode.core.api.OpenCodeTodo
 import com.yugahashimoto.andcode.core.api.OpenCodeVcsInfo
 import com.yugahashimoto.andcode.core.api.PromptRequest
+import com.yugahashimoto.andcode.core.api.ProtocolDetectingOpenCodeApi
 import com.yugahashimoto.andcode.core.api.ProviderAuthAuthorization
 import com.yugahashimoto.andcode.core.api.ProviderAuthMethod
 import com.yugahashimoto.andcode.core.api.ProviderCatalog
@@ -36,11 +38,18 @@ import kotlinx.serialization.json.JsonObject
 
 class RemoteOpenCodeBackend(
     private val profile: ConnectionProfile,
-    private val client: OpenCodeApiClient = OpenCodeApiClient(profile),
+    private val client: OpenCodeApi = ProtocolDetectingOpenCodeApi(profile),
 ) : OpenCodeBackend {
     override val id: String = profile.id
     override val displayName: String = profile.name
     override val kind: BackendKind = BackendKind.REMOTE
+
+    /**
+     * The wire protocol the server was detected to speak, or null before the first probe. Targets
+     * read this to gate capabilities; a client that is not auto-detecting reports null.
+     */
+    val protocol: OpenCodeProtocol?
+        get() = (client as? ProtocolDetectingOpenCodeApi)?.protocol
 
     override suspend fun health(): OpenCodeHealth = client.health()
 
