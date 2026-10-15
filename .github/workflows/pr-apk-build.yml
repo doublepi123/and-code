@@ -39,6 +39,8 @@ jobs:
           packages: platform-tools
       - run: yes | sdkmanager --licenses >/dev/null || true
       - run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Static analysis and formatting
+        run: ./gradlew detekt spotlessCheck
       # See release.yml for why this is AND_CODE_-prefixed rather than GITHUB_CLIENT_ID directly.
       - run: ./gradlew :app:testGithubDebugUnitTest :app:assembleGithubDebug
         env:
