@@ -165,7 +165,24 @@ data class OpenCodeAgent(
     val description: String? = null,
     val mode: String? = null,
     val native: Boolean = false,
+    val hidden: Boolean = false,
 )
+
+/**
+ * The agents a user can start a chat with: OpenCode's primary (and `all`) agents, minus the hidden
+ * internal ones (compaction, title, summary). Plugin-defined primaries such as oh-my-opencode-slim's
+ * `orchestrator` are included.
+ *
+ * Server order is kept on purpose: OpenCode's `GET /agent` sorts its configured `default_agent`
+ * first (or `build` when none is set), so [defaultAgentName] follows the server's choice instead of
+ * hard-coding `build`.
+ */
+fun List<OpenCodeAgent>.selectablePrimaryAgents(): List<OpenCodeAgent> =
+    filter { (it.mode == null || it.mode == "primary" || it.mode == "all") && !it.hidden }
+
+/** The server's default agent: the first selectable primary it lists, falling back to `build`. */
+fun List<OpenCodeAgent>.defaultAgentName(): String? =
+    selectablePrimaryAgents().firstOrNull()?.name ?: firstOrNull { it.name == "build" }?.name
 
 @Serializable
 data class OpenCodeProject(

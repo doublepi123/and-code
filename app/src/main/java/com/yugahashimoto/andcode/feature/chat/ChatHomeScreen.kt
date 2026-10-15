@@ -131,6 +131,8 @@ import com.yugahashimoto.andcode.core.api.OpenCodeCommand
 import com.yugahashimoto.andcode.core.api.OpenCodeProvider
 import com.yugahashimoto.andcode.core.api.OpenCodeSkill
 import com.yugahashimoto.andcode.core.api.PromptAttachment
+import com.yugahashimoto.andcode.core.api.defaultAgentName
+import com.yugahashimoto.andcode.core.api.selectablePrimaryAgents
 import com.yugahashimoto.andcode.core.diagnostics.StallDiagnosis
 import com.yugahashimoto.andcode.core.diagnostics.StallReason
 import com.yugahashimoto.andcode.core.diagnostics.explain
@@ -1864,15 +1866,18 @@ private fun ModeChip(
     onSelect: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    // OpenCode servers can report arbitrary custom agents alongside its two built-ins; this chip
-    // only offers build/plan to keep the picker to the two modes users actually switch between.
-    // Fall back to the full list if a server configuration omits both, rather than showing an
-    // unusable empty dropdown.
-    val selectableAgents = agents.filter { it.name == "build" || it.name == "plan" }.ifEmpty { agents }
+    // Every primary agent the server reports is offered, not just build/plan: plugins such as
+    // oh-my-opencode-slim register their own primary (`orchestrator`), and hiding it left users
+    // unable to reach it. `agents` is already narrowed to non-hidden primaries upstream, so
+    // subagents and OpenCode's internal compaction/title/summary agents never appear here.
+    val selectableAgents = agents.selectablePrimaryAgents()
     // The selection is remembered across runtimes, so an id this runtime does not offer would
     // otherwise label the chip with another agent's name. An empty list is not a licence to trust
     // it either: that is exactly the state a stopped runtime is in.
-    val label = selectedAgentId?.takeIf { id -> selectableAgents.any { it.name == id } } ?: "build"
+    val label =
+        selectedAgentId?.takeIf { id -> selectableAgents.any { it.name == id } }
+            ?: agents.defaultAgentName()
+            ?: "build"
     Box {
         Surface(
             modifier =

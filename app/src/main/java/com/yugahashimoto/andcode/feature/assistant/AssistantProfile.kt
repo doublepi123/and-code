@@ -2,6 +2,7 @@ package com.yugahashimoto.andcode.feature.assistant
 
 import com.yugahashimoto.andcode.core.api.OpenCodeAgent
 import com.yugahashimoto.andcode.core.api.OpenCodeProvider
+import com.yugahashimoto.andcode.core.api.defaultAgentName
 import com.yugahashimoto.andcode.data.connection.ConnectionProfile
 
 data class AssistantProfile(
@@ -53,7 +54,7 @@ object AssistantProfileResolver {
             val agentId =
                 profile.agentId
                     ?.takeIf { configured -> agents.any { it.name == configured } }
-                    ?: agents.firstOrNull { it.name == "build" }?.name
+                    ?: agents.defaultAgentName()
                     ?: agents.firstOrNull()?.name
 
             ResolvedAssistantProfile(
