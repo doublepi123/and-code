@@ -24,6 +24,8 @@ data class ServerInfoUiState(
     val configEditDraft: String? = null,
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
+    /** False when the runtime cannot take config writes (OpenCode V2); the editor is then not offered. */
+    val configEditable: Boolean = true,
 )
 
 class ServerInfoViewModel(
@@ -43,8 +45,9 @@ class ServerInfoViewModel(
 
     fun refresh() {
         val backend = registry.selected.value ?: return
+        val editable = runCatching { registry.selected.value?.capabilities?.configEditing }.getOrNull() ?: false
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            _state.update { it.copy(isLoading = true, error = null, configEditable = editable) }
             runCatching {
                 val config = backend.config()
                 val providers = runCatching { backend.configProviders() }.getOrDefault(emptyList())
@@ -69,6 +72,7 @@ class ServerInfoViewModel(
     }
 
     fun startEditConfig() {
+        if (!_state.value.configEditable) return
         _state.update { it.copy(configEditDraft = it.configJson) }
     }
 

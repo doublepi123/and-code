@@ -9,6 +9,7 @@ import com.yugahashimoto.andcode.core.api.OpenCodeHealth
 import com.yugahashimoto.andcode.core.api.OpenCodeMessage
 import com.yugahashimoto.andcode.core.api.OpenCodePathInfo
 import com.yugahashimoto.andcode.core.api.OpenCodeProject
+import com.yugahashimoto.andcode.core.api.OpenCodeProtocol
 import com.yugahashimoto.andcode.core.api.OpenCodeSearchMatch
 import com.yugahashimoto.andcode.core.api.OpenCodeSession
 import com.yugahashimoto.andcode.core.api.OpenCodeTodo
@@ -49,14 +50,22 @@ class LocalRuntimeTarget(
     override val agent: LocalAgent = LocalAgent.OPEN_CODE
     override val type: RuntimeType = RuntimeType.LOCAL
     override val kind: BackendKind = BackendKind.LOCAL
-    override val capabilities =
-        RuntimeCapabilities(
-            permissions = true,
-            providerModelList = true,
-            abortsBeforeInterrupt = true,
-            editMessages = true,
-            diffCapable = true,
-        )
+
+    /**
+     * The local runtime is pinned to a V1 OpenCode build, so this stays `true` in practice. It still
+     * reads the detected protocol, so a V2 server behind the local port gets the same gating as a
+     * remote one. [LocalOpenCodeBackend.protocol] is null until the runtime is installed.
+     */
+    override val capabilities: RuntimeCapabilities
+        get() =
+            RuntimeCapabilities(
+                permissions = true,
+                providerModelList = true,
+                abortsBeforeInterrupt = true,
+                editMessages = backend.protocol != OpenCodeProtocol.V2,
+                diffCapable = true,
+                configEditing = backend.protocol != OpenCodeProtocol.V2,
+            )
 
     private val mutableState = MutableStateFlow(mapStatus(runtimeManager.status()))
     override val state: StateFlow<RuntimeState> = mutableState.asStateFlow()

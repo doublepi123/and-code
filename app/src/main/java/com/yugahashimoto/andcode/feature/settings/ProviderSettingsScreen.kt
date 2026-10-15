@@ -114,11 +114,13 @@ fun ProviderSettingsScreen(
                 shape = RoundedCornerShape(14.dp),
             )
 
-            OutlinedButton(
-                onClick = onOpenAddCustomProvider,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.provider_add_custom))
+            if (state.customProvidersEditable) {
+                OutlinedButton(
+                    onClick = onOpenAddCustomProvider,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.provider_add_custom))
+                }
             }
 
             val filtered =

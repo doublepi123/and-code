@@ -9,6 +9,7 @@ import com.yugahashimoto.andcode.core.api.OpenCodeHealth
 import com.yugahashimoto.andcode.core.api.OpenCodeMessage
 import com.yugahashimoto.andcode.core.api.OpenCodePathInfo
 import com.yugahashimoto.andcode.core.api.OpenCodeProject
+import com.yugahashimoto.andcode.core.api.OpenCodeProtocol
 import com.yugahashimoto.andcode.core.api.OpenCodeSearchMatch
 import com.yugahashimoto.andcode.core.api.OpenCodeSession
 import com.yugahashimoto.andcode.core.api.OpenCodeTodo
@@ -42,14 +43,22 @@ class RemoteRuntimeTarget(
     override val displayName: String = profile.name
     override val type: RuntimeType = RuntimeType.REMOTE
     override val kind: BackendKind = BackendKind.REMOTE
-    override val capabilities =
-        RuntimeCapabilities(
-            permissions = true,
-            providerModelList = true,
-            abortsBeforeInterrupt = true,
-            editMessages = true,
-            diffCapable = true,
-        )
+
+    /**
+     * Read on each access because the protocol is only known after the first probe. V2 has no
+     * message delete, so the edit action is hidden there; V1 keeps the original set.
+     */
+    override val capabilities: RuntimeCapabilities
+        get() =
+            RuntimeCapabilities(
+                permissions = true,
+                providerModelList = true,
+                abortsBeforeInterrupt = true,
+                editMessages = backend.protocol != OpenCodeProtocol.V2,
+                diffCapable = true,
+                // V1 accepts config patches; V2 does not, so its config entry points stay hidden.
+                configEditing = backend.protocol != OpenCodeProtocol.V2,
+            )
 
     private val mutableState = MutableStateFlow<RuntimeState>(RuntimeState.Disconnected)
     override val state: StateFlow<RuntimeState> = mutableState.asStateFlow()

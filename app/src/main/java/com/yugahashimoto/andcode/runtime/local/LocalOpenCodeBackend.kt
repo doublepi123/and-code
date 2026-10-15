@@ -15,12 +15,14 @@ import com.yugahashimoto.andcode.core.api.OpenCodeHealth
 import com.yugahashimoto.andcode.core.api.OpenCodeMessage
 import com.yugahashimoto.andcode.core.api.OpenCodePathInfo
 import com.yugahashimoto.andcode.core.api.OpenCodeProject
+import com.yugahashimoto.andcode.core.api.OpenCodeProtocol
 import com.yugahashimoto.andcode.core.api.OpenCodeSearchMatch
 import com.yugahashimoto.andcode.core.api.OpenCodeSession
 import com.yugahashimoto.andcode.core.api.OpenCodeSkill
 import com.yugahashimoto.andcode.core.api.OpenCodeTodo
 import com.yugahashimoto.andcode.core.api.OpenCodeVcsInfo
 import com.yugahashimoto.andcode.core.api.PromptRequest
+import com.yugahashimoto.andcode.core.api.ProtocolDetectingOpenCodeApi
 import com.yugahashimoto.andcode.core.api.ProviderAuthAuthorization
 import com.yugahashimoto.andcode.core.api.ProviderAuthMethod
 import com.yugahashimoto.andcode.core.api.ProviderCatalog
@@ -38,7 +40,7 @@ class LocalOpenCodeBackend(
     private val portProvider: () -> Int?,
     private val passwordProvider: () -> String? = { null },
     private val backendFactory: (ConnectionProfile) -> RemoteOpenCodeBackend = { profile ->
-        RemoteOpenCodeBackend(profile)
+        RemoteOpenCodeBackend(profile, ProtocolDetectingOpenCodeApi(profile))
     },
 ) : OpenCodeBackend {
     constructor(runtimeManager: LocalRuntimeManager) : this(
@@ -82,6 +84,14 @@ class LocalOpenCodeBackend(
     fun invalidate() {
         cached = null
     }
+
+    /**
+     * Protocol of the current local server, or null when the runtime is not installed yet or has
+     * not been probed. Reads only the already-built delegate: capability checks run from Compose on
+     * the main thread, and building a delegate reads runtime metadata and the password from disk.
+     */
+    val protocol: OpenCodeProtocol?
+        get() = cached?.backend?.protocol
 
     override suspend fun health(): OpenCodeHealth = delegate().health()
 

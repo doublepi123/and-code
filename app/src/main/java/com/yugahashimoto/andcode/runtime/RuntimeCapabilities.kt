@@ -49,4 +49,10 @@ data class RuntimeCapabilities(
      * Antigravity has no diff implementation at all, so this stays false there.
      */
     val diffCapable: Boolean = false,
+    /**
+     * True when the runtime accepts general configuration writes (custom providers, the raw config
+     * editor). OpenCode V2 only takes shell settings over the API, so its targets set this false and
+     * the settings screens hide those entry points rather than letting the write fail.
+     */
+    val configEditing: Boolean = false,
 )

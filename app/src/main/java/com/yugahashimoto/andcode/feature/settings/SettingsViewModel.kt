@@ -87,6 +87,11 @@ data class SettingsUiState(
     val providerAuthNotice: ProviderAuthNotice? = null,
     val customProviderIds: Set<String> = emptySet(),
     val customProviderDialog: CustomProviderDialogState? = null,
+    /**
+     * False when the OpenCode runtime cannot take custom provider definitions over the API (V2).
+     * The add button is hidden rather than offering a write that the server would reject.
+     */
+    val customProvidersEditable: Boolean = true,
     val favoriteModelKeys: Set<String> = emptySet(),
     val recentModelKeys: List<String> = emptyList(),
     val hiddenModelKeys: Set<String> = emptySet(),
@@ -240,6 +245,7 @@ class SettingsViewModel(
                 providerAuthNotice = oauth.notice,
                 customProviderIds = customProviders.definitions().map { it.id }.toSet(),
                 customProviderDialog = customProviderDialog,
+                customProvidersEditable = providerTarget()?.capabilities?.configEditing ?: true,
                 favoriteModelKeys = core.preferences.favoriteModelKeys,
                 recentModelKeys = core.preferences.recentModelKeys,
                 hiddenModelKeys = core.preferences.hiddenModelKeys,
@@ -606,6 +612,8 @@ class SettingsViewModel(
 
     /** Opens the draft dialog for registering an OpenAI-compatible provider OpenCode's catalogue doesn't offer. */
     fun openAddCustomProvider() {
+        // Guarded here as well as in the UI, so no other entry point can open a dialog that cannot save.
+        if (providerTarget()?.capabilities?.configEditing == false) return
         customProviderDialogState.value = CustomProviderDialogState()
     }
 

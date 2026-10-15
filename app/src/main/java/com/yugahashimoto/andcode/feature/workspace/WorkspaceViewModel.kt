@@ -2,8 +2,8 @@ package com.yugahashimoto.andcode.feature.workspace
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.yugahashimoto.andcode.core.api.OpenCodeApiClient
 import com.yugahashimoto.andcode.core.api.OpenCodeHealth
+import com.yugahashimoto.andcode.core.api.ProtocolDetectingOpenCodeApi
 import com.yugahashimoto.andcode.core.storage.DeviceStorage
 import com.yugahashimoto.andcode.data.connection.ConnectionProfile
 import com.yugahashimoto.andcode.data.connection.SecureSettingsRepository
@@ -330,7 +330,7 @@ class WorkspaceViewModel(
         if (!form.canSave) {
             return Result.failure(IllegalArgumentException(incompleteConnectionMessage))
         }
-        return runCatching { OpenCodeApiClient(form.toProfile()).health() }
+        return runCatching { ProtocolDetectingOpenCodeApi(form.toProfile()).health() }
     }
 
     /** [agents] is the setup guide's selection; every other caller means OpenCode alone. */
