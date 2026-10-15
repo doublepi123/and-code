@@ -48,15 +48,17 @@ class OpenCodeV2ApiClientTest {
         server.shutdown()
     }
 
-    private fun profile(password: String? = "secret") =
-        ConnectionProfile(
-            id = "test",
-            name = "Test",
-            baseUrl = server.url("/").toString(),
-            username = "opencode",
-            password = password,
-            allowInsecureLan = true,
-        )
+    private fun profile(
+        password: String? = "secret",
+        username: String = "opencode",
+    ) = ConnectionProfile(
+        id = "test",
+        name = "Test",
+        baseUrl = server.url("/").toString(),
+        username = username,
+        password = password,
+        allowInsecureLan = true,
+    )
 
     private fun client(password: String? = "secret"): OpenCodeV2ApiClient = OpenCodeV2ApiClient(profile(password), OkHttpClient())
 
@@ -102,6 +104,27 @@ class OpenCodeV2ApiClientTest {
                 assertEquals(401, error.statusCode)
             }
             assertEquals(OpenCodeProtocol.V2, detector.protocol)
+        }
+
+    @Test
+    fun `probe confirms a V1 server that uses a custom username`() =
+        runBlocking {
+            // A V1 server with OPENCODE_SERVER_USERNAME=alice answers 401 to V2's fixed user and
+            // only accepts alice on global/health.
+            server.enqueue(MockResponse().setResponseCode(401).setBody("Unauthorized"))
+            server.enqueue(json("""{"healthy":true,"version":"1.18.5"}"""))
+            val detector = ProtocolDetectingOpenCodeApi(profile(username = "alice"))
+
+            val health = detector.health()
+
+            assertEquals("1.18.5", health.version)
+            assertEquals(OpenCodeProtocol.V1, detector.protocol)
+            val info = server.takeRequest()
+            assertEquals("/api/info", info.path)
+            assertEquals(Credentials.basic("opencode", "secret"), info.getHeader("Authorization"))
+            val legacy = server.takeRequest()
+            assertEquals("/global/health", legacy.path)
+            assertEquals(Credentials.basic("alice", "secret"), legacy.getHeader("Authorization"))
         }
 
     @Test

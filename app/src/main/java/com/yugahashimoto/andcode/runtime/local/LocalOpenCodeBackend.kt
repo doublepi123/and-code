@@ -87,10 +87,11 @@ class LocalOpenCodeBackend(
 
     /**
      * Protocol of the current local server, or null when the runtime is not installed yet or has
-     * not been probed. Never throws, because capability checks run on the UI path.
+     * not been probed. Reads only the already-built delegate: capability checks run from Compose on
+     * the main thread, and building a delegate reads runtime metadata and the password from disk.
      */
     val protocol: OpenCodeProtocol?
-        get() = runCatching { delegate().protocol }.getOrNull()
+        get() = cached?.backend?.protocol
 
     override suspend fun health(): OpenCodeHealth = delegate().health()
 

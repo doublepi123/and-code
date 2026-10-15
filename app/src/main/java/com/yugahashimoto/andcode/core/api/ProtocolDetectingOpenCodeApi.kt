@@ -316,7 +316,9 @@ class ProtocolDetectingOpenCodeApi(
      * kept so that [health] can return it without a second request.
      */
     private fun confirmLegacy(): Probe {
-        val response = fetchStatus("global/health")
+        // A V1 server may run with a custom OPENCODE_SERVER_USERNAME, which the V1 client honours,
+        // so the V1 confirmation authenticates as the profile does rather than as V2's fixed user.
+        val response = fetchStatus("global/health", username = profile.username.ifBlank { OpenCodeV2ApiClient.USERNAME })
         if (response.code !in 200..299) {
             throw OpenCodeApiException(statusCode = response.code, message = "OpenCode probe failed (HTTP ${response.code})")
         }
@@ -326,7 +328,14 @@ class ProtocolDetectingOpenCodeApi(
         return Probe.Legacy(health)
     }
 
-    private fun fetchStatus(path: String): ProbeResponse {
+    /**
+     * [username] defaults to V2's fixed `opencode` user: V2 rejects any other name, so `api/info`
+     * must use it even when the profile carries a V1 custom username.
+     */
+    private fun fetchStatus(
+        path: String,
+        username: String = OpenCodeV2ApiClient.USERNAME,
+    ): ProbeResponse {
         val url = baseUrl.resolve(path) ?: throw IllegalArgumentException("Invalid OpenCode API path")
         val request =
             Request.Builder()
@@ -334,7 +343,7 @@ class ProtocolDetectingOpenCodeApi(
                 .header("Accept", "application/json")
                 .apply {
                     profile.password?.takeIf { it.isNotBlank() }?.let { password ->
-                        header("Authorization", Credentials.basic(OpenCodeV2ApiClient.USERNAME, password))
+                        header("Authorization", Credentials.basic(username, password))
                     }
                 }
                 .build()
