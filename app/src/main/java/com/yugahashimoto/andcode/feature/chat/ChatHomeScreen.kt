@@ -1868,8 +1868,9 @@ private fun ModeChip(
     var expanded by remember { mutableStateOf(false) }
     // Every primary agent the server reports is offered, not just build/plan: plugins such as
     // oh-my-opencode-slim register their own primary (`orchestrator`), and hiding it left users
-    // unable to reach it. `agents` is already narrowed to non-hidden primaries upstream, so
-    // subagents and OpenCode's internal compaction/title/summary agents never appear here.
+    // unable to reach it. `agents` is normally narrowed upstream already; filtering again keeps
+    // subagents and OpenCode's internal compaction/title/summary agents out even if a caller
+    // passes the raw list.
     val selectableAgents = agents.selectablePrimaryAgents()
     // The selection is remembered across runtimes, so an id this runtime does not offer would
     // otherwise label the chip with another agent's name. An empty list is not a licence to trust

@@ -180,9 +180,8 @@ data class OpenCodeAgent(
 fun List<OpenCodeAgent>.selectablePrimaryAgents(): List<OpenCodeAgent> =
     filter { (it.mode == null || it.mode == "primary" || it.mode == "all") && !it.hidden }
 
-/** The server's default agent: the first selectable primary it lists, falling back to `build`. */
-fun List<OpenCodeAgent>.defaultAgentName(): String? =
-    selectablePrimaryAgents().firstOrNull()?.name ?: firstOrNull { it.name == "build" }?.name
+/** The server's default agent: the first selectable primary it lists, or null when it offers none. */
+fun List<OpenCodeAgent>.defaultAgentName(): String? = selectablePrimaryAgents().firstOrNull()?.name
 
 @Serializable
 data class OpenCodeProject(
