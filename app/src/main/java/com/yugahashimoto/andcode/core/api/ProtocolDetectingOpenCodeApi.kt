@@ -22,6 +22,7 @@ import okhttp3.Credentials
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.IOException
 
 /** Which HTTP API a server speaks. V2 servers answer under the `api/` prefix; V1 servers answer the legacy routes. */
 enum class OpenCodeProtocol { V1, V2 }
@@ -298,24 +299,43 @@ class ProtocolDetectingOpenCodeApi(
      *
      * V1 servers answer `api/info` with the single-page-app HTML, which is not conclusive by itself.
      * V1 is only confirmed when `global/health` succeeds, so an outage or proxy error cannot be
-     * mistaken for a V1 server. Transient statuses (5xx, 408, 429) are thrown and not cached.
+     * mistaken for a V1 server.
+     *
+     * Older V1 servers, and V1 builds without an embedded web UI, proxy unknown paths such as
+     * `api/info` to app.opencode.ai, so a 5xx or a timeout there can be a perfectly healthy V1
+     * server whose upstream web host is unreachable. Those failures still try `global/health`, but
+     * only a 1.x version on it is accepted as V1: a V2 server answers that path with HTML, so its
+     * transient failures keep throwing and are never cached as V1.
      */
     private suspend fun probe(): Probe =
         withContext(Dispatchers.IO) {
-            val info = fetchStatus("api/info")
+            val info =
+                try {
+                    fetchStatus("api/info")
+                } catch (error: IOException) {
+                    return@withContext confirmLegacyMajorOne() ?: throw error
+                }
             when {
                 info.code in 200..299 -> versionOf(info.body)?.let { Probe.V2(it) } ?: confirmLegacy()
                 info.code == 401 && isUnauthorizedTag(info.body) -> Probe.V2Unauthorized
                 info.code == 401 || info.code == 403 || info.code == 404 || info.code in 300..399 -> confirmLegacy()
-                else -> throw OpenCodeApiException(statusCode = info.code, message = "OpenCode probe failed (HTTP ${info.code})")
+                else ->
+                    confirmLegacyMajorOne()
+                        ?: throw OpenCodeApiException(statusCode = info.code, message = "OpenCode probe failed (HTTP ${info.code})")
             }
         }
+
+    /** [confirmLegacy] for an inconclusive `api/info`: a 1.x server, or null when that is not proven. */
+    private fun confirmLegacyMajorOne(): Probe.Legacy? =
+        runCatching { confirmLegacy() }
+            .getOrNull()
+            ?.takeIf { legacy -> legacy.health.version.trim().removePrefix("v").substringBefore('.') == "1" }
 
     /**
      * Confirms a V1 server with `global/health`; any non-success is not a V1 verdict. The body is
      * kept so that [health] can return it without a second request.
      */
-    private fun confirmLegacy(): Probe {
+    private fun confirmLegacy(): Probe.Legacy {
         // A V1 server may run with a custom OPENCODE_SERVER_USERNAME, which the V1 client honours,
         // so the V1 confirmation authenticates as the profile does rather than as V2's fixed user.
         val response = fetchStatus("global/health", username = profile.username.ifBlank { OpenCodeV2ApiClient.USERNAME })

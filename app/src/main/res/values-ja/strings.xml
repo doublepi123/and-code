@@ -193,6 +193,17 @@
     <string name="provider_custom_models_hint">カンマ区切り。例: gpt-4o, gpt-4o-mini</string>
     <string name="provider_custom_invalid">プロバイダーID、ベースURL、モデルIDを少なくとも1つ入力してください。</string>
     <string name="provider_custom_remove">削除</string>
+    <string name="provider_custom_edit">編集</string>
+    <string name="provider_edit_custom_title">カスタムプロバイダーを編集</string>
+    <string name="provider_custom_fetch_models">モデル一覧を取得</string>
+    <string name="provider_custom_api_key_help">任意。&lt;base URL&gt;/models からモデルを取得するために使います。次の手順で入力することもできます。</string>
+    <string name="provider_custom_api_key_stored_help">空欄のままにすると保存済みの API キーを使います。</string>
+    <string name="provider_custom_fetch_needs_base_url">先にベース URL を入力してください。</string>
+    <string name="provider_custom_fetch_empty">エンドポイントがモデルを返しませんでした。</string>
+    <string name="provider_custom_fetch_failed">モデル一覧を取得できませんでした。</string>
+    <plurals name="provider_custom_fetch_success">
+        <item quantity="other">%1$d 件のモデルを取得しました。不要なものは削除してください。</item>
+    </plurals>
     <string name="continue_label">続ける</string>
     <string name="question_free_text_label">その他（自由入力）</string>
     <string name="question_cancel">回答しない</string>
@@ -467,6 +478,7 @@
     <string name="chat_mode_plan">計画</string>
     <string name="chat_mode_auto_accept">自動承認</string>
     <string name="chat_auto_accept_short">自動</string>
+    <string name="chat_token_speed">%1$s tok/s</string>
     <string name="github_git_operations">GitHub Git 操作</string>
     <string name="github_not_connected">未接続</string>
     <string name="github_connect">GitHubに接続</string>

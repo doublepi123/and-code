@@ -180,6 +180,18 @@
     <string name="provider_custom_models_hint">Comma-separated, e.g. gpt-4o, gpt-4o-mini</string>
     <string name="provider_custom_invalid">Enter a provider ID, base URL, and at least one model ID.</string>
     <string name="provider_custom_remove">Remove</string>
+    <string name="provider_custom_edit">Edit</string>
+    <string name="provider_edit_custom_title">Edit custom provider</string>
+    <string name="provider_custom_fetch_models">Fetch models</string>
+    <string name="provider_custom_api_key_help">Optional. Used to fetch models from &lt;base URL&gt;/models; you can also enter it in the next step.</string>
+    <string name="provider_custom_api_key_stored_help">Leave empty to use the saved API key.</string>
+    <string name="provider_custom_fetch_needs_base_url">Enter a base URL first.</string>
+    <string name="provider_custom_fetch_empty">The endpoint returned no models.</string>
+    <string name="provider_custom_fetch_failed">Could not fetch the model list.</string>
+    <plurals name="provider_custom_fetch_success">
+        <item quantity="one">Fetched %1$d model. Remove any you don\'t want.</item>
+        <item quantity="other">Fetched %1$d models. Remove any you don\'t want.</item>
+    </plurals>
     <string name="continue_label">Continue</string>
     <string name="question_free_text_label">Other (type your own answer)</string>
     <string name="question_cancel">Decline to answer</string>
@@ -454,6 +466,7 @@
     <string name="chat_mode_plan">Plan</string>
     <string name="chat_mode_auto_accept">Auto accept</string>
     <string name="chat_auto_accept_short">Auto</string>
+    <string name="chat_token_speed">%1$s tok/s</string>
     <string name="github_git_operations">GitHub Git operations</string>
     <string name="github_not_connected">Not connected</string>
     <string name="github_connect">Connect GitHub</string>

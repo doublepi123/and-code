@@ -6,6 +6,7 @@ import com.yugahashimoto.andcode.core.api.McpServer
 import com.yugahashimoto.andcode.runtime.LocalAgent
 import com.yugahashimoto.andcode.runtime.OpenCodeBackend
 import com.yugahashimoto.andcode.runtime.RuntimeRegistry
+import com.yugahashimoto.andcode.runtime.RuntimeTarget
 import com.yugahashimoto.andcode.runtime.local.ClaudeCodeTarget
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -77,7 +78,16 @@ class McpViewModel(
             _state.update { it.copy(isLoading = true, error = null) }
             runCatching { backend.mcpServers() }
                 .onSuccess { servers ->
-                    _state.update { it.copy(servers = servers, isLoading = false) }
+                    // Read after the list call: that call is what lets a remote target detect its
+                    // protocol, and an OpenCode V2 server has no MCP OAuth endpoints to offer.
+                    val oauthOffered = (backend as? RuntimeTarget)?.capabilities?.mcpOAuth != false
+                    _state.update {
+                        it.copy(
+                            servers = servers,
+                            isLoading = false,
+                            supportsOAuth = agent == LocalAgent.OPEN_CODE && oauthOffered,
+                        )
+                    }
                 }
                 .onFailure { e ->
                     _state.update { it.copy(error = e.message, isLoading = false) }

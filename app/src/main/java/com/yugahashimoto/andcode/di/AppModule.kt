@@ -32,6 +32,7 @@ import com.yugahashimoto.andcode.runtime.local.LocalRuntimeReleaseClient
 import com.yugahashimoto.andcode.runtime.local.LocalRuntimeServiceController
 import com.yugahashimoto.andcode.runtime.local.LocalRuntimeTarget
 import com.yugahashimoto.andcode.runtime.local.LocalRuntimeUpdater
+import com.yugahashimoto.andcode.runtime.local.StartupCommandsRunner
 import com.yugahashimoto.andcode.runtime.local.VerifiedRuntimeDownloader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -88,6 +89,13 @@ val appModule =
             val providerCredentials: LocalProviderCredentialStore = get()
             val customProviders: CustomProviderStore = get()
             val runtimeDirectory: File = get()
+            // Guest startup commands (issue #379): read from the workspace on every runtime start,
+            // launched detached so they can neither block nor fail the start itself.
+            val startupCommandsRunner =
+                StartupCommandsRunner(
+                    runtimeDirectory = runtimeDirectory,
+                    githubToken = { settings.githubToken },
+                )
             LocalRuntimeProcessLauncher(
                 runtimeDirectory = runtimeDirectory,
                 portProbe = LocalRuntimeManager::defaultPortProbe,
@@ -100,6 +108,7 @@ val appModule =
                             if (settings.githubToken.isNullOrBlank()) helper.remove() else helper.install()
                         }
                     }
+                    runCatching { startupCommandsRunner.schedule(installed) }
                 },
             )
         }

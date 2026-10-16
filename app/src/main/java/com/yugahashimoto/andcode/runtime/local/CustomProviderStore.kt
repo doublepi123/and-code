@@ -84,7 +84,17 @@ class CustomProviderStore(
         val current = definitions()
         val currentIds = current.map { it.id }.toSet()
         (loadSyncedIds() - currentIds).forEach(providers::remove)
-        current.forEach { definition -> providers[definition.id] = definition.toProviderConfig() }
+        current.forEach { definition ->
+            val configured = definition.toProviderConfig()
+            val existingModels = (providers[definition.id] as? JsonObject)?.get("models") as? JsonObject
+            // Starting the runtime must not erase models added outside the app, or their custom
+            // limits/options. Stored definitions supply missing ids, not an authoritative allowlist.
+            providers[definition.id] =
+                JsonObject(
+                    configured +
+                        ("models" to JsonObject(configured["models"]!!.jsonObject + existingModels.orEmpty())),
+                )
+        }
 
         val updatedRoot = JsonObject(existingRoot + ("provider" to JsonObject(providers)))
         if (updatedRoot != existingRoot) {

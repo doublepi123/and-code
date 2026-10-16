@@ -5,6 +5,7 @@ import com.yugahashimoto.andcode.feature.activity.ActivityViewModel
 import com.yugahashimoto.andcode.feature.chat.ChatViewModel
 import com.yugahashimoto.andcode.feature.settings.SettingsViewModel
 import com.yugahashimoto.andcode.feature.workspace.WorkspaceViewModel
+import com.yugahashimoto.andcode.runtime.local.CustomProviderModelFetcher
 import kotlinx.coroutines.flow.first
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
@@ -53,6 +54,13 @@ val viewModelModule =
                     androidContext().getString(com.yugahashimoto.andcode.R.string.provider_disconnect_rejected),
                 customProviderInvalidMessage =
                     androidContext().getString(com.yugahashimoto.andcode.R.string.provider_custom_invalid),
+                modelFetcher = CustomProviderModelFetcher(get()),
+                customProviderFetchNeedsBaseUrlMessage =
+                    androidContext().getString(com.yugahashimoto.andcode.R.string.provider_custom_fetch_needs_base_url),
+                customProviderFetchEmptyMessage =
+                    androidContext().getString(com.yugahashimoto.andcode.R.string.provider_custom_fetch_empty),
+                customProviderFetchFailedMessage =
+                    androidContext().getString(com.yugahashimoto.andcode.R.string.provider_custom_fetch_failed),
             )
         }
 

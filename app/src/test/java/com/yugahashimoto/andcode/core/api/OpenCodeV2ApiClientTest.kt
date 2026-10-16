@@ -146,6 +146,8 @@ class OpenCodeV2ApiClientTest {
     fun `probe does not cache a transport failure`() =
         runBlocking {
             server.enqueue(MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.DISCONNECT_AT_START))
+            // The legacy fallback after a transport failure finds no V1 server either.
+            server.enqueue(MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.DISCONNECT_AT_START))
             server.enqueue(json(V2_INFO))
             val detector = ProtocolDetectingOpenCodeApi(profile())
 
@@ -161,6 +163,8 @@ class OpenCodeV2ApiClientTest {
     fun `a 5xx from api info neither decides the protocol nor is cached`() =
         runBlocking {
             server.enqueue(MockResponse().setResponseCode(503).setBody("upstream"))
+            // A V2 server answers the legacy health path with its SPA shell, not V1 JSON.
+            server.enqueue(MockResponse().setHeader("Content-Type", "text/html").setBody("<html/>"))
             server.enqueue(json(V2_INFO))
             val detector = ProtocolDetectingOpenCodeApi(profile())
 
@@ -170,6 +174,34 @@ class OpenCodeV2ApiClientTest {
             assertEquals(503, (failed as OpenCodeApiException).statusCode)
             assertNull("a 5xx must not classify the server as V1", detector.protocol)
             assertEquals("2.0.28", detector.health().version)
+        }
+
+    @Test
+    fun `a V1 server whose api info proxy fails is still confirmed through global health`() =
+        runBlocking {
+            // Older V1 servers proxy unknown paths to app.opencode.ai; when that host is
+            // unreachable, api/info is a 500 even though the server itself is healthy.
+            server.enqueue(MockResponse().setResponseCode(500).setBody("proxy error"))
+            server.enqueue(json("""{"healthy":true,"version":"1.2.0"}"""))
+            val detector = ProtocolDetectingOpenCodeApi(profile())
+
+            val health = detector.health()
+
+            assertEquals("1.2.0", health.version)
+            assertEquals(OpenCodeProtocol.V1, detector.protocol)
+        }
+
+    @Test
+    fun `a 5xx from api info with a non 1 x global health is not taken as V1`() =
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(500))
+            server.enqueue(json("""{"healthy":true,"version":"2.0.28"}"""))
+            val detector = ProtocolDetectingOpenCodeApi(profile())
+
+            val failed = runCatching { detector.health() }.exceptionOrNull()
+
+            assertEquals(500, (failed as OpenCodeApiException).statusCode)
+            assertNull(detector.protocol)
         }
 
     @Test
@@ -761,15 +793,14 @@ class OpenCodeV2ApiClientTest {
         }
 
     @Test
-    fun `agents map id to name and keep mode and hidden`() =
+    fun `agents map id to name, keep mode and drop hidden agents`() =
         runBlocking {
             server.enqueue(json(AGENT_LIST))
 
             val agents = client().agents()
 
-            assertEquals(listOf("build", "compaction"), agents.map { it.name })
+            assertEquals(listOf("build"), agents.map { it.name })
             assertEquals("primary", agents[0].mode)
-            assertTrue(agents[1].hidden)
         }
 
     @Test

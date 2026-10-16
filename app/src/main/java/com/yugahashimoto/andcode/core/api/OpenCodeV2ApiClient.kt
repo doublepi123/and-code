@@ -184,13 +184,17 @@ class OpenCodeV2ApiClient(
         )
     }
 
+    /**
+     * Internal V2 agents (compaction, title, summary) are reported as `mode: primary` with
+     * `hidden: true`; the app's agent model has no hidden flag yet, so they are dropped here to
+     * keep them out of the mode picker and settings.
+     */
     override suspend fun agents(): List<OpenCodeAgent> =
-        getData<List<V2Agent>>("api/agent").map { agent ->
+        getData<List<V2Agent>>("api/agent").filterNot { it.hidden }.map { agent ->
             OpenCodeAgent(
                 name = agent.id,
                 description = agent.description,
                 mode = agent.mode,
-                hidden = agent.hidden,
             )
         }
 
@@ -527,6 +531,7 @@ class OpenCodeV2ApiClient(
         directory: String?,
     ): Boolean {
         sendVoid(requestBuilder("api/session/${encodePath(sessionId)}").delete())
+        sessionLocks.remove(sessionId)
         return true
     }
 

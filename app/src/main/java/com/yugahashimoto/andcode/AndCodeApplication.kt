@@ -74,6 +74,7 @@ import com.yugahashimoto.andcode.runtime.local.LocalRuntimeReleaseClient
 import com.yugahashimoto.andcode.runtime.local.LocalRuntimeServiceController
 import com.yugahashimoto.andcode.runtime.local.LocalRuntimeTarget
 import com.yugahashimoto.andcode.runtime.local.LocalRuntimeUpdater
+import com.yugahashimoto.andcode.runtime.local.StartupCommandsRunner
 import com.yugahashimoto.andcode.runtime.local.SystemPromptStore
 import com.yugahashimoto.andcode.runtime.local.VerifiedRuntimeDownloader
 import com.yugahashimoto.andcode.runtime.local.applyOpenCodeSystemPrompt
@@ -287,6 +288,13 @@ class AndCodeApplication : Application() {
                 accessCoordinator = accessCoordinator,
             )
         localRuntimeInstaller = installer
+        // Guest startup commands (issue #379): read from the workspace on every runtime start,
+        // launched detached so they can neither block nor fail the start itself.
+        val startupCommandsRunner =
+            StartupCommandsRunner(
+                runtimeDirectory = runtimeDirectory,
+                githubToken = { settings.githubToken },
+            )
         val launcher =
             LocalRuntimeProcessLauncher(
                 runtimeDirectory = runtimeDirectory,
@@ -300,6 +308,7 @@ class AndCodeApplication : Application() {
                             if (settings.githubToken.isNullOrBlank()) helper.remove() else helper.install()
                         }
                     }
+                    runCatching { startupCommandsRunner.schedule(installed) }
                 },
             )
         commandRunner =

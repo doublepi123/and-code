@@ -195,6 +195,19 @@
     <string name="provider_custom_models_hint">Separados por comas, ej. gpt-4o, gpt-4o-mini</string>
     <string name="provider_custom_invalid">Ingresa un ID de proveedor, una URL base y al menos un ID de modelo.</string>
     <string name="provider_custom_remove">Eliminar</string>
+    <string name="provider_custom_edit">Editar</string>
+    <string name="provider_edit_custom_title">Editar proveedor personalizado</string>
+    <string name="provider_custom_fetch_models">Obtener modelos</string>
+    <string name="provider_custom_api_key_help">Opcional. Se usa para obtener los modelos de &lt;base URL&gt;/models; también puedes introducirla en el siguiente paso.</string>
+    <string name="provider_custom_api_key_stored_help">Déjalo vacío para usar la clave API guardada.</string>
+    <string name="provider_custom_fetch_needs_base_url">Introduce primero una URL base.</string>
+    <string name="provider_custom_fetch_empty">El endpoint no devolvió ningún modelo.</string>
+    <string name="provider_custom_fetch_failed">No se pudo obtener la lista de modelos.</string>
+    <plurals name="provider_custom_fetch_success">
+        <item quantity="one">Se obtuvo %1$d modelo. Elimina los que no quieras.</item>
+        <item quantity="many">Se obtuvieron %1$d modelos. Elimina los que no quieras.</item>
+        <item quantity="other">Se obtuvieron %1$d modelos. Elimina los que no quieras.</item>
+    </plurals>
     <string name="continue_label">Continuar</string>
     <string name="question_free_text_label">Otro (escribe tu respuesta)</string>
     <string name="question_cancel">No responder</string>
@@ -467,6 +480,7 @@
     <string name="chat_mode_plan">Planificar</string>
     <string name="chat_mode_auto_accept">Aceptación automática</string>
     <string name="chat_auto_accept_short">Auto</string>
+    <string name="chat_token_speed">%1$s tok/s</string>
     <string name="github_git_operations">Operaciones Git de GitHub</string>
     <string name="github_not_connected">No conectado</string>
     <string name="github_connect">Conectar GitHub</string>
