@@ -22,6 +22,8 @@ concurrency:
 
 jobs:
   publish:
+    # The F-Droid repository metadata and Pages URL belong to the upstream project.
+    if: github.repository == 'yuga-hashimoto/and-code'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

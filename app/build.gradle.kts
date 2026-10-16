@@ -24,6 +24,12 @@ if (!isFdroidBuild) {
     apply(plugin = "com.google.firebase.crashlytics")
 }
 
+// Fork build (com.doublepi123.andcode): there is no Firebase app registered for this package,
+// so never upload Crashlytics mapping files to the placeholder app in google-services.json.
+tasks.matching { it.name.startsWith("uploadCrashlyticsMappingFile") }.configureEach {
+    enabled = false
+}
+
 // When set, the native runtime payload (proot, libtalloc, libandroid-shmem) is built from
 // source by scripts/build_android_runtime_native_debs.sh before Gradle runs, and this build
 // extracts those .deb files instead of downloading them from the Termux mirror. F-Droid's
@@ -134,7 +140,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 66
-        versionName = "1.2.27"
+        versionName = "1.2.27-dp1"
         buildConfigField("String", "GITHUB_CLIENT_ID", "\"$githubClientId\"")
 
         // The on-device runtime (see ANDROID_ABIS in scripts/prepare_android_runtime_native_libs.py)
