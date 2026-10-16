@@ -58,6 +58,7 @@ class RemoteRuntimeTarget(
                 diffCapable = true,
                 // V1 accepts config patches; V2 does not, so its config entry points stay hidden.
                 configEditing = backend.protocol != OpenCodeProtocol.V2,
+                mcpOAuth = backend.protocol != OpenCodeProtocol.V2,
             )
 
     private val mutableState = MutableStateFlow<RuntimeState>(RuntimeState.Disconnected)

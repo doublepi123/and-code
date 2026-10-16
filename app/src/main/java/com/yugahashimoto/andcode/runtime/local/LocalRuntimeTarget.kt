@@ -65,6 +65,7 @@ class LocalRuntimeTarget(
                 editMessages = backend.protocol != OpenCodeProtocol.V2,
                 diffCapable = true,
                 configEditing = backend.protocol != OpenCodeProtocol.V2,
+                mcpOAuth = backend.protocol != OpenCodeProtocol.V2,
             )
 
     private val mutableState = MutableStateFlow(mapStatus(runtimeManager.status()))

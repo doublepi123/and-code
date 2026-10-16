@@ -151,6 +151,46 @@ class CustomProviderStoreTest {
         assertEquals("not-json", configFile.readText())
     }
 
+    @Test
+    fun `sync preserves existing model ids and metadata while adding missing stored models`() {
+        val rootfs = temp.newFolder("models-rootfs")
+        val configFile =
+            File(rootfs, "root/.config/opencode/opencode.json").apply {
+                parentFile.mkdirs()
+                writeText(
+                    """
+                    {
+                      "disabled_providers": ["opencode"],
+                      "provider": {
+                        "acme": {
+                          "models": {
+                            "manual": {"name": "Manual model", "options": {"temperature": 0.5}},
+                            "shared": {"name": "Custom name", "limit": {"context": 100000}}
+                          }
+                        }
+                      }
+                    }
+                    """.trimIndent(),
+                )
+            }
+        val before = Json.parseToJsonElement(configFile.readText()).jsonObject
+        val originalModels = before["provider"]!!.jsonObject["acme"]!!.jsonObject["models"]!!.jsonObject
+        val memory = memoryStore()
+        memory.store.upsert(CustomProviderDefinition("acme", "Acme", "https://acme.example/v1", listOf("shared", "new")))
+
+        memory.store.syncToRuntime(rootfs)
+
+        val after = Json.parseToJsonElement(configFile.readText()).jsonObject
+        val models = after["provider"]!!.jsonObject["acme"]!!.jsonObject["models"]!!.jsonObject
+        assertEquals(setOf("manual", "shared", "new"), models.keys)
+        assertEquals(originalModels["manual"], models["manual"])
+        assertEquals(originalModels["shared"], models["shared"])
+        assertEquals(before["disabled_providers"], after["disabled_providers"])
+
+        memory.store.syncToRuntime(rootfs)
+        assertEquals(after, Json.parseToJsonElement(configFile.readText()).jsonObject)
+    }
+
     private fun memoryStore(): MemoryProviderStore {
         val definitions = mutableListOf<CustomProviderDefinition>()
         val syncedIds = mutableSetOf<String>()

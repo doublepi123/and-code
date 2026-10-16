@@ -198,6 +198,22 @@
     <string name="provider_custom_models_hint">مفصولة بفواصل، مثال: gpt-4o, gpt-4o-mini</string>
     <string name="provider_custom_invalid">أدخل معرف الموفر وعنوان URL الأساسي ونموذجًا واحدًا على الأقل.</string>
     <string name="provider_custom_remove">إزالة</string>
+    <string name="provider_custom_edit">تعديل</string>
+    <string name="provider_edit_custom_title">تعديل المزوّد المخصّص</string>
+    <string name="provider_custom_fetch_models">جلب النماذج</string>
+    <string name="provider_custom_api_key_help">اختياري. يُستخدم لجلب النماذج من &lt;base URL&gt;/models، ويمكنك أيضًا إدخاله في الخطوة التالية.</string>
+    <string name="provider_custom_api_key_stored_help">اتركه فارغًا لاستخدام مفتاح API المحفوظ.</string>
+    <string name="provider_custom_fetch_needs_base_url">أدخل عنوان URL الأساسي أولًا.</string>
+    <string name="provider_custom_fetch_empty">لم تُرجع نقطة النهاية أي نماذج.</string>
+    <string name="provider_custom_fetch_failed">تعذّر جلب قائمة النماذج.</string>
+    <plurals name="provider_custom_fetch_success">
+        <item quantity="zero">تم جلب %1$d نموذج. احذف ما لا تحتاج إليه.</item>
+        <item quantity="one">تم جلب نموذج واحد. احذفه إن لم تكن بحاجة إليه.</item>
+        <item quantity="two">تم جلب نموذجين. احذف ما لا تحتاج إليه.</item>
+        <item quantity="few">تم جلب %1$d نماذج. احذف ما لا تحتاج إليه.</item>
+        <item quantity="many">تم جلب %1$d نموذجًا. احذف ما لا تحتاج إليه.</item>
+        <item quantity="other">تم جلب %1$d نموذج. احذف ما لا تحتاج إليه.</item>
+    </plurals>
     <string name="continue_label">متابعة</string>
     <string name="question_free_text_label">أخرى (اكتب إجابتك)</string>
     <string name="question_cancel">رفض الإجابة</string>
@@ -470,6 +486,7 @@
     <string name="chat_mode_plan">تخطيط</string>
     <string name="chat_mode_auto_accept">قبول تلقائي</string>
     <string name="chat_auto_accept_short">تلقائي</string>
+    <string name="chat_token_speed">%1$s tok/s</string>
     <string name="github_git_operations">عمليات GitHub Git</string>
     <string name="github_not_connected">غير متصل</string>
     <string name="github_connect">الاتصال بـ GitHub</string>

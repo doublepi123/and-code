@@ -1,6 +1,5 @@
 package com.yugahashimoto.andcode.runtime.local
 
-import com.yugahashimoto.andcode.core.storage.DeviceStorage
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -56,35 +55,17 @@ class LocalRuntimeProcessLauncher(
         val prootTmp = File(runtimeDirectory, "proot-tmp").apply { mkdirs() }
 
         val command =
-            buildList {
-                add(suite.proot.absolutePath)
-                add("--kill-on-exit")
-                add("--link2symlink")
-                add("-0")
-                add("-r")
-                add(rootfs.absolutePath)
-                add("-b")
-                add("/dev")
-                add("-b")
-                add("/proc")
-                add("-b")
-                add("/sys")
-                add("-b")
-                add("/system")
-                add("-b")
-                add("${workspace.absolutePath}:/workspace")
-                // Nothing while all-files access is ungranted, so the sandbox stays exactly as
-                // narrow as it was until the user opens the device up to it.
-                addAll(DeviceStorage.bindArguments())
-                add("-w")
-                add("/workspace")
-                add("/usr/local/bin/opencode")
-                add("serve")
-                add("--hostname")
-                add("127.0.0.1")
-                add("--port")
-                add(port.toString())
-            }
+            prootCommandPrefix(suite, rootfs, workspace) +
+                listOf(
+                    "-w",
+                    "/workspace",
+                    "/usr/local/bin/opencode",
+                    "serve",
+                    "--hostname",
+                    "127.0.0.1",
+                    "--port",
+                    port.toString(),
+                )
 
         val builder =
             ProcessBuilder(command)

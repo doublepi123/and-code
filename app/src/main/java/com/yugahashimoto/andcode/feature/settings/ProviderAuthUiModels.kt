@@ -42,6 +42,20 @@ data class CustomProviderDialogState(
     val name: String = "",
     val baseUrl: String = "",
     val models: String = "",
+    /** Only used to call `<baseURL>/models`; it is handed to the API-key step afterwards, never stored here. */
+    val apiKey: String = "",
+    /** True when the dialog edits an already registered provider, whose id must not change. */
+    val editing: Boolean = false,
+    /** Whether a stored credential exists for [id], so fetching works without re-typing the key. */
+    val hasStoredApiKey: Boolean = false,
+    val isFetchingModels: Boolean = false,
+    val fetchedModelCount: Int? = null,
+    val fetchError: String? = null,
     val isSubmitting: Boolean = false,
     val error: String? = null,
-)
+) {
+    val isBusy: Boolean get() = isSubmitting || isFetchingModels
+}
+
+/** Splits the comma- or newline-separated model field into distinct, trimmed ids. */
+internal fun parseModelIdList(raw: String): List<String> = raw.split(',', '\n').map(String::trim).filter(String::isNotEmpty).distinct()

@@ -196,6 +196,20 @@
     <string name="provider_custom_models_hint">Через запятую, напр. gpt-4o, gpt-4o-mini</string>
     <string name="provider_custom_invalid">Введите ID провайдера, базовый URL и хотя бы один ID модели.</string>
     <string name="provider_custom_remove">Удалить</string>
+    <string name="provider_custom_edit">Изменить</string>
+    <string name="provider_edit_custom_title">Изменить пользовательского провайдера</string>
+    <string name="provider_custom_fetch_models">Получить модели</string>
+    <string name="provider_custom_api_key_help">Необязательно. Нужен для получения моделей из &lt;base URL&gt;/models; его также можно ввести на следующем шаге.</string>
+    <string name="provider_custom_api_key_stored_help">Оставьте пустым, чтобы использовать сохранённый API-ключ.</string>
+    <string name="provider_custom_fetch_needs_base_url">Сначала введите базовый URL.</string>
+    <string name="provider_custom_fetch_empty">Эндпоинт не вернул ни одной модели.</string>
+    <string name="provider_custom_fetch_failed">Не удалось получить список моделей.</string>
+    <plurals name="provider_custom_fetch_success">
+        <item quantity="one">Получена %1$d модель. Удалите ненужные.</item>
+        <item quantity="few">Получено %1$d модели. Удалите ненужные.</item>
+        <item quantity="many">Получено %1$d моделей. Удалите ненужные.</item>
+        <item quantity="other">Получено %1$d модели. Удалите ненужные.</item>
+    </plurals>
     <string name="continue_label">Продолжить</string>
     <string name="question_free_text_label">Другое (введите свой ответ)</string>
     <string name="question_cancel">Не отвечать</string>
@@ -468,6 +482,7 @@
     <string name="chat_mode_plan">План</string>
     <string name="chat_mode_auto_accept">Автоприём</string>
     <string name="chat_auto_accept_short">Авто</string>
+    <string name="chat_token_speed">%1$s tok/s</string>
     <string name="github_git_operations">Операции GitHub Git</string>
     <string name="github_not_connected">Не подключено</string>
     <string name="github_connect">Подключить GitHub</string>

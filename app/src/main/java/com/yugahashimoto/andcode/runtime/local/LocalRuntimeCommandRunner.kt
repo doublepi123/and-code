@@ -1,6 +1,5 @@
 package com.yugahashimoto.andcode.runtime.local
 
-import com.yugahashimoto.andcode.core.storage.DeviceStorage
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -33,29 +32,14 @@ class LocalRuntimeCommandRunner(
             val outputFile = File.createTempFile("diagnostic-", ".log", File(runtimeDirectory, "logs").apply { mkdirs() })
             try {
                 val command =
-                    buildList {
-                        add(runtime.commandSuite.proot.absolutePath)
-                        add("--kill-on-exit")
-                        add("--link2symlink")
-                        add("-0")
-                        add("-r")
-                        add(runtime.rootfs.absolutePath)
-                        add("-b")
-                        add("/dev")
-                        add("-b")
-                        add("/proc")
-                        add("-b")
-                        add("/sys")
-                        add("-b")
-                        add("/system")
-                        // So a shell command can reach the device's files once the user allows it.
-                        addAll(DeviceStorage.bindArguments())
-                        add("-w")
-                        add("/root")
-                        add("/bin/sh")
-                        add("-lc")
-                        add(commandText)
-                    }
+                    prootCommandPrefix(runtime.commandSuite, runtime.rootfs) +
+                        listOf(
+                            "-w",
+                            "/root",
+                            "/bin/sh",
+                            "-lc",
+                            commandText,
+                        )
                 val process =
                     ProcessBuilder(command)
                         .redirectErrorStream(true)

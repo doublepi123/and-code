@@ -672,6 +672,7 @@ fun ChatHomeScreen(
                             .firstOrNull { it.id == selectedProviderId }
                             ?.models?.get(selectedModelId)
                             ?.limit?.context ?: 0L,
+                    tokensPerSecond = state.connectionQuality?.tokensPerSecond ?: 0.0,
                     showSlashCommands = showSlashCommands,
                     slashCommands = state.slashCommands,
                     slashSkills = state.slashSkills,
@@ -1257,6 +1258,7 @@ private fun ChatComposer(
     enterToSend: Boolean,
     contextTokensUsed: Long,
     contextLimit: Long,
+    tokensPerSecond: Double,
     showSlashCommands: Boolean,
     slashCommands: List<OpenCodeCommand>,
     slashSkills: List<OpenCodeSkill>,
@@ -1629,6 +1631,9 @@ private fun ChatComposer(
                     tokensUsed = contextTokensUsed,
                     contextLimit = contextLimit,
                 )
+            }
+            if (isRunning && tokensPerSecond >= 0.05) {
+                CompactTokenSpeed(tokensPerSecond)
             }
         }
     }
@@ -2166,6 +2171,20 @@ private fun formatTokenCount(tokens: Long): String =
         tokens >= 1_000 -> "%.0fk".format(tokens / 1_000.0)
         else -> tokens.toString()
     }
+
+@Composable
+private fun CompactTokenSpeed(tokensPerSecond: Double) {
+    Text(
+        text = stringResource(R.string.chat_token_speed, formatTokenRate(tokensPerSecond)),
+        style = MaterialTheme.typography.labelSmall,
+        fontSize = 9.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 2.dp),
+    )
+}
+
+private fun formatTokenRate(tokensPerSecond: Double): String =
+    if (tokensPerSecond >= 10.0) "%.0f".format(tokensPerSecond) else "%.1f".format(tokensPerSecond)
 
 @Preview(showBackground = true)
 @Composable

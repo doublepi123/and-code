@@ -195,6 +195,19 @@
     <string name="provider_custom_models_hint">Séparés par des virgules, ex. gpt-4o, gpt-4o-mini</string>
     <string name="provider_custom_invalid">Saisissez un ID de fournisseur, une URL de base et au moins un ID de modèle.</string>
     <string name="provider_custom_remove">Supprimer</string>
+    <string name="provider_custom_edit">Modifier</string>
+    <string name="provider_edit_custom_title">Modifier le fournisseur personnalisé</string>
+    <string name="provider_custom_fetch_models">Récupérer les modèles</string>
+    <string name="provider_custom_api_key_help">Facultatif. Sert à récupérer les modèles depuis &lt;base URL&gt;/models ; vous pouvez aussi la saisir à l\'étape suivante.</string>
+    <string name="provider_custom_api_key_stored_help">Laissez vide pour utiliser la clé API enregistrée.</string>
+    <string name="provider_custom_fetch_needs_base_url">Saisissez d\'abord une URL de base.</string>
+    <string name="provider_custom_fetch_empty">Le point de terminaison n\'a renvoyé aucun modèle.</string>
+    <string name="provider_custom_fetch_failed">Impossible de récupérer la liste des modèles.</string>
+    <plurals name="provider_custom_fetch_success">
+        <item quantity="one">%1$d modèle récupéré. Supprimez ceux dont vous n\'avez pas besoin.</item>
+        <item quantity="many">%1$d modèles récupérés. Supprimez ceux dont vous n\'avez pas besoin.</item>
+        <item quantity="other">%1$d modèles récupérés. Supprimez ceux dont vous n\'avez pas besoin.</item>
+    </plurals>
     <string name="continue_label">Continuer</string>
     <string name="question_free_text_label">Autre (saisissez votre réponse)</string>
     <string name="question_cancel">Ne pas répondre</string>
@@ -467,6 +480,7 @@
     <string name="chat_mode_plan">Planifier</string>
     <string name="chat_mode_auto_accept">Acceptation automatique</string>
     <string name="chat_auto_accept_short">Auto</string>
+    <string name="chat_token_speed">%1$s tok/s</string>
     <string name="github_git_operations">Opérations Git GitHub</string>
     <string name="github_not_connected">Non connecté</string>
     <string name="github_connect">Connecter GitHub</string>

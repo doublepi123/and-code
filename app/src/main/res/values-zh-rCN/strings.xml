@@ -193,6 +193,17 @@
     <string name="provider_custom_models_hint">用逗号分隔，例如 gpt-4o, gpt-4o-mini</string>
     <string name="provider_custom_invalid">请输入提供商 ID、基础 URL 以及至少一个模型 ID。</string>
     <string name="provider_custom_remove">移除</string>
+    <string name="provider_custom_edit">编辑</string>
+    <string name="provider_edit_custom_title">编辑自定义提供商</string>
+    <string name="provider_custom_fetch_models">获取模型列表</string>
+    <string name="provider_custom_api_key_help">可选。用于从 &lt;base URL&gt;/models 获取模型；也可以在下一步再输入。</string>
+    <string name="provider_custom_api_key_stored_help">留空则使用已保存的 API 密钥。</string>
+    <string name="provider_custom_fetch_needs_base_url">请先输入基础 URL。</string>
+    <string name="provider_custom_fetch_empty">该端点没有返回任何模型。</string>
+    <string name="provider_custom_fetch_failed">无法获取模型列表。</string>
+    <plurals name="provider_custom_fetch_success">
+        <item quantity="other">已获取 %1$d 个模型。可删除不需要的模型。</item>
+    </plurals>
     <string name="continue_label">继续</string>
     <string name="question_free_text_label">其他（自行输入答案）</string>
     <string name="question_cancel">不回答</string>
@@ -465,6 +476,7 @@
     <string name="chat_mode_plan">计划</string>
     <string name="chat_mode_auto_accept">自动接受</string>
     <string name="chat_auto_accept_short">自动</string>
+    <string name="chat_token_speed">%1$s tok/s</string>
     <string name="github_git_operations">GitHub Git 操作</string>
     <string name="github_not_connected">未连接</string>
     <string name="github_connect">连接 GitHub</string>
