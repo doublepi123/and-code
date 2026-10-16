@@ -22,7 +22,7 @@ class BaselineProfileGenerator {
         rule.collect(
             packageName =
                 InstrumentationRegistry.getArguments().getString("targetAppId")
-                    ?: "com.yugahashimoto.andcode",
+                    ?: "com.doublepi123.andcode",
             includeInStartupProfile = true,
         ) {
             pressHome()

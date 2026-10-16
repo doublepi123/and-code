@@ -22,7 +22,7 @@ class StartupProfileGenerator {
     @Test
     fun startupAndChatNavigation() {
         rule.measureRepeated(
-            packageName = "com.yugahashimoto.andcode",
+            packageName = "com.doublepi123.andcode",
             metrics = listOf(StartupTimingMetric()),
             iterations = 5,
             startupMode = StartupMode.COLD,
