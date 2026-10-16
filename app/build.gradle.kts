@@ -12,17 +12,9 @@ plugins {
     id("com.google.firebase.crashlytics") apply false
 }
 
-// The fdroid flavor's dependencies already exclude Firebase (see the "githubImplementation"
-// entries below), but the google-services/crashlytics Gradle plugins process google-services.json
-// project-wide regardless of flavor, so they must be skipped outright rather than merely left off
-// a flavor's classpath. F-Droid's own build server builds with -Pandcode.fdroidBuild=true (see the
-// `gradleprops` field this project's future fdroiddata metadata will declare) to produce a build
-// with no Firebase/Google Play services code at all.
-val isFdroidBuild = providers.gradleProperty("andcode.fdroidBuild").orNull.toBoolean()
-if (!isFdroidBuild) {
-    apply(plugin = "com.google.gms.google-services")
-    apply(plugin = "com.google.firebase.crashlytics")
-}
+// Fork build (com.doublepi123.andcode): the google-services/crashlytics plugins are never applied
+// and no Firebase dependency is declared, so no flavor sends anything to Firebase. The github
+// flavor compiles the fdroid no-op diagnostics reporters (see sourceSets below).
 
 // When set, the native runtime payload (proot, libtalloc, libandroid-shmem) is built from
 // source by scripts/build_android_runtime_native_debs.sh before Gradle runs, and this build
@@ -130,11 +122,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.yugahashimoto.andcode"
+        applicationId = "com.doublepi123.andcode"
         minSdk = 26
         targetSdk = 35
         versionCode = 66
-        versionName = "1.2.27"
+        versionName = "1.2.27-dp1"
         buildConfigField("String", "GITHUB_CLIENT_ID", "\"$githubClientId\"")
 
         // The on-device runtime (see ANDROID_ABIS in scripts/prepare_android_runtime_native_libs.py)
@@ -153,13 +145,12 @@ android {
     flavorDimensions += "distribution"
     productFlavors {
         // Distributed via GitHub Releases (and the self-hosted F-Droid repo built from those
-        // release APKs). Includes Firebase Analytics/Crashlytics.
+        // release APKs). In this fork it ships without Firebase, like the fdroid flavor.
         create("github") {
             dimension = "distribution"
         }
         // Built from source by F-Droid's own build server for the official F-Droid catalog.
-        // Firebase is excluded entirely; see the isFdroidBuild guard above and the
-        // "githubImplementation" dependencies below.
+        // Firebase is excluded entirely.
         create("fdroid") {
             dimension = "distribution"
         }
@@ -233,6 +224,8 @@ android {
     }
     sourceSets {
         getByName("main").jniLibs.srcDir(generatedRuntimeJni)
+        // Fork: no Firebase, so the github flavor uses the fdroid no-op diagnostics reporters.
+        getByName("github").java.setSrcDirs(listOf("src/fdroid/java"))
     }
     packaging {
         resources {
@@ -255,14 +248,6 @@ dependencies {
     // Core Android
     implementation("androidx.core:core-ktx:1.15.0")
 
-    // Firebase (github flavor only - the fdroid flavor ships with no Firebase/Google Play
-    // services code so it can be built from source by F-Droid's own build server).
-    // 34.17.0 pulls Play Services Measurement compiled with Kotlin 2.2 metadata, while this
-    // project is currently on Kotlin 2.0/KSP 2.0. Keep the Firebase stack on the compatible
-    // 33.6 line until the Android build toolchain is upgraded together.
-    "githubImplementation"(platform("com.google.firebase:firebase-bom:33.6.0"))
-    "githubImplementation"("com.google.firebase:firebase-analytics")
-    "githubImplementation"("com.google.firebase:firebase-crashlytics")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-process:2.8.7")

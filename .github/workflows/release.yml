@@ -78,8 +78,7 @@ jobs:
           GITHUB_CLIENT_ID: ${{ vars.AND_CODE_GITHUB_CLIENT_ID }}
         run: |
           if [ -z "$GITHUB_CLIENT_ID" ]; then
-            echo "AND_CODE_GITHUB_CLIENT_ID repo variable is not set - the published APK would have no GitHub sign-in" >&2
-            exit 1
+            echo "::warning::AND_CODE_GITHUB_CLIENT_ID repo variable is not set - the published APK will have no GitHub sign-in"
           fi
            ./gradlew detekt spotlessCheck :app:lintGithubDebug :app:testGithubDebugUnitTest assembleGithubDebug assembleGithubRelease
           # Separate invocation, deliberately without GITHUB_CLIENT_ID: this is the same flavor and
