@@ -397,6 +397,37 @@ class RuntimeCatalogRepositoryTest {
             assertEquals(callsBefore + 1, target.agentCalls)
         }
 
+    @Test
+    fun `agents read as loading until they arrive, and stop loading once retries give up`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val target = FakeTarget("mac")
+            // The load's read and the whole background retry (1 + 5 reads) fail.
+            repeat(6) { target.agentAnswers.add { error("plugin load failed") } }
+            val registry =
+                RuntimeRegistry(
+                    store = FakeStore(selectedRuntimeId = "mac"),
+                    localTarget = FakeTarget("local-android", RuntimeType.LOCAL),
+                    remoteFactory = { target },
+                )
+            val repository = RuntimeCatalogRepository(registry = registry, scope = TestScope(dispatcher))
+
+            // Before the first read lands the chip has nothing yet, so it reads as loading.
+            testScheduler.runCurrent()
+            assertTrue(repository.state.value.agentsLoading)
+
+            advanceUntilIdle()
+            assertTrue(repository.state.value.agents.isEmpty())
+            assertFalse(repository.state.value.agentsLoading)
+
+            // A tap on the empty chip marks it loading straight away, before the retry has run.
+            repository.refreshAgents()
+            assertTrue(repository.state.value.agentsLoading)
+            advanceUntilIdle()
+            assertEquals(listOf("build"), repository.state.value.agents.map { it.name })
+            assertFalse(repository.state.value.agentsLoading)
+        }
+
     private class FakeStore(
         profiles: List<ConnectionProfile> = listOf(profileStatic("mac")),
         override var selectedRuntimeId: String? = null,

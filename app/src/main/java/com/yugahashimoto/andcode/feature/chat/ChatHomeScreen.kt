@@ -183,6 +183,7 @@ fun ChatHomeScreen(
     onSelectAgent: (String) -> Unit,
     /** Asks the runtime for its agents again; the mode chip calls it when its list is empty. */
     onRefreshAgents: () -> Unit = {},
+    agentsLoading: Boolean = false,
     selectedVariant: String? = null,
     onSelectVariant: (String?) -> Unit = {},
     /**
@@ -663,6 +664,7 @@ fun ChatHomeScreen(
                     selectedAgentId = selectedAgentId,
                     onSelectAgent = onSelectAgent,
                     onRefreshAgents = onRefreshAgents,
+                    agentsLoading = agentsLoading,
                     thinkingOptions =
                         providers
                             .firstOrNull { it.id == selectedProviderId }
@@ -1297,6 +1299,7 @@ private fun ChatComposer(
     selectedAgentId: String?,
     onSelectAgent: (String) -> Unit,
     onRefreshAgents: () -> Unit,
+    agentsLoading: Boolean = false,
     thinkingOptions: List<String>,
     selectedVariant: String?,
     onSelectVariant: (String?) -> Unit,
@@ -1665,6 +1668,7 @@ private fun ChatComposer(
                     selectedAgentId = selectedAgentId,
                     onSelect = onSelectAgent,
                     onRefresh = onRefreshAgents,
+                    loading = agentsLoading,
                 )
                 // Auto-accept answers permission prompts, so it only means something on a runtime
                 // that asks for permission. Antigravity decides permissions per invocation from its
@@ -2009,6 +2013,7 @@ private fun ModeChip(
     selectedAgentId: String?,
     onSelect: (String) -> Unit,
     onRefresh: () -> Unit = {},
+    loading: Boolean = false,
 ) {
     var expanded by remember { mutableStateOf(false) }
     // Every primary agent the server reports is offered, not just build/plan: plugins such as
@@ -2031,11 +2036,8 @@ private fun ModeChip(
                     .widthIn(max = 92.dp)
                     .clickable(
                         onClick = {
-                            // An empty list is a runtime that has not answered `GET /agent` yet (a
-                            // local server still installing its plugins) or whose answer failed.
-                            // Opening the menu then showed nothing, so the tap read as a dead
-                            // button; ask again instead, and the menu has items next time.
-                            if (selectableAgents.isEmpty()) onRefresh() else expanded = true
+                            expanded = true
+                            if (selectableAgents.isEmpty()) onRefresh()
                         },
                     )
                     .testTag("chat-mode-chip"),
@@ -2048,11 +2050,19 @@ private fun ModeChip(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Icon(
-                    Icons.Outlined.Shield,
-                    contentDescription = stringResource(R.string.cd_agent_mode),
-                    modifier = Modifier.size(14.dp),
-                )
+                if (loading && selectableAgents.isEmpty()) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        strokeWidth = 1.5.dp,
+                    )
+                } else {
+                    Icon(
+                        Icons.Outlined.Shield,
+                        contentDescription = stringResource(R.string.cd_agent_mode),
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
                 Text(
                     label,
                     style = MaterialTheme.typography.labelMedium,
@@ -2067,6 +2077,20 @@ private fun ModeChip(
             }
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            if (selectableAgents.isEmpty()) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(
+                                if (loading) R.string.chat_agents_loading else R.string.chat_agents_load_failed,
+                            ),
+                        )
+                    },
+                    onClick = onRefresh,
+                    enabled = !loading,
+                    modifier = if (loading) Modifier.testTag("chat-mode-loading") else Modifier,
+                )
+            }
             selectableAgents.forEach { agent ->
                 DropdownMenuItem(
                     text = { Text(agent.name) },

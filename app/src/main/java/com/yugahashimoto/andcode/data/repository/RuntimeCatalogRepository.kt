@@ -41,6 +41,12 @@ data class RuntimeCatalogState(
     val error: String? = null,
     /** The line of [error] that is about agents, so a later successful agent read can drop it. */
     val agentsError: String? = null,
+    /**
+     * True while the agent list is being read and none is on screen yet: a local OpenCode installing
+     * its plugins can take tens of seconds on its first `GET /agent`, and the mode chip shows this
+     * instead of looking dead.
+     */
+    val agentsLoading: Boolean = false,
 )
 
 class RuntimeCatalogRepository(
@@ -176,9 +182,14 @@ class RuntimeCatalogRepository(
                 // as the fetch took — seconds, while a stopped runtime is retried — and OpenCode
                 // models appeared under Claude Code.
                 if (current.runtime?.id != target.id) {
-                    RuntimeCatalogState(runtime = target, isRefreshing = true)
+                    RuntimeCatalogState(runtime = target, isRefreshing = true, agentsLoading = true)
                 } else {
-                    current.copy(runtime = target, isRefreshing = true, error = null)
+                    current.copy(
+                        runtime = target,
+                        isRefreshing = true,
+                        error = null,
+                        agentsLoading = !current.agents.hasSelectableAgent(),
+                    )
                 }
             }
 
@@ -266,6 +277,8 @@ class RuntimeCatalogRepository(
                     isRefreshing = false,
                     error = errors.takeIf { it.isNotEmpty() }?.joinToString("\n"),
                     agentsError = catalog.agentsFailure(messages),
+                    // Still loading when nothing selectable came back: the retry below takes over.
+                    agentsLoading = !agentsToUse.hasSelectableAgent(),
                 )
         }
         // Outside the lock: a local OpenCode installing its plugins can take tens of seconds per
@@ -316,12 +329,21 @@ class RuntimeCatalogRepository(
                 if (running.first == target.id) return
                 running.second.cancel()
             }
+            mutableState.update {
+                if (it.runtime?.id == target.id && !it.agents.hasSelectableAgent()) it.copy(agentsLoading = true) else it
+            }
             agentRetry =
                 target.id to
                 scope.launch {
-                    val list = loadAgents(target).getOrNull()?.takeIf { it.hasSelectableAgent() } ?: return@launch
+                    val list = loadAgents(target).getOrNull()?.takeIf { it.hasSelectableAgent() }
                     if (registry.selected.value?.id != target.id) return@launch
-                    mutableState.update { if (it.runtime?.id == target.id) it.withAgents(list) else it }
+                    mutableState.update {
+                        when {
+                            it.runtime?.id != target.id -> it
+                            list != null -> it.withAgents(list)
+                            else -> it.copy(agentsLoading = false)
+                        }
+                    }
                 }
         }
     }
@@ -399,5 +421,5 @@ private fun List<OpenCodeAgent>?.hasSelectableAgent(): Boolean = this?.selectabl
 private fun RuntimeCatalogState.withAgents(agents: List<OpenCodeAgent>): RuntimeCatalogState {
     val remaining =
         error?.lineSequence()?.filterNot { it == agentsError }?.joinToString("\n")?.takeIf { it.isNotBlank() }
-    return copy(agents = agents, error = remaining, agentsError = null)
+    return copy(agents = agents, error = remaining, agentsError = null, agentsLoading = false)
 }
