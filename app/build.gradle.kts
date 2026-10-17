@@ -126,7 +126,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 66
-        versionName = "1.2.27-dp4"
+        versionName = "1.2.27-dp5"
         buildConfigField("String", "GITHUB_CLIENT_ID", "\"$githubClientId\"")
 
         // The on-device runtime (see ANDROID_ABIS in scripts/prepare_android_runtime_native_libs.py)
