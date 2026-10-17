@@ -28,8 +28,7 @@ class LocalRuntimePortTest {
         )
     }
 
-    private fun readPort(): Int =
-        json.decodeFromString<LocalRuntimeMetadata>(File(temporaryFolder.root, "metadata.json").readText()).port
+    private fun readPort(): Int = json.decodeFromString<LocalRuntimeMetadata>(File(temporaryFolder.root, "metadata.json").readText()).port
 
     @Test
     fun `a legacy 4097 install is moved to the manifest port`() {
