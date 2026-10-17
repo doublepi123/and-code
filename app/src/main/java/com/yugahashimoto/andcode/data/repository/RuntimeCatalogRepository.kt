@@ -301,8 +301,11 @@ class RuntimeCatalogRepository(
      */
     fun refreshAgents() {
         val target = registry.selected.value ?: return
-        if (mutableState.value.runtime?.id == target.id && mutableState.value.health == null && !mutableState.value.isRefreshing) {
-            refresh()
+        val current = mutableState.value
+        if (current.runtime?.id == target.id && current.health == null) {
+            // Not connected yet. A load still in flight will retry the agents itself once it
+            // connects; a load that gave up gets a full refresh, not a poll of a dead server.
+            if (!current.isRefreshing) refresh()
             return
         }
         synchronized(agentRetryLock) {
@@ -329,8 +332,14 @@ class RuntimeCatalogRepository(
         val agents: Result<List<OpenCodeAgent>>,
         val workspaces: Result<List<WorkspaceRef>>,
     ) {
+        /**
+         * One line, so [withAgents] can find it again in [RuntimeCatalogState.error]: decoding errors
+         * carry the JSON input on a second line, which a line-by-line removal would never match.
+         */
         fun agentsFailure(messages: RuntimeCatalogMessages): String? =
-            agents.exceptionOrNull()?.let { messages.agents(it.safeMessage(messages.connectionFailed)) }
+            agents.exceptionOrNull()?.let {
+                messages.agents(it.safeMessage(messages.connectionFailed).replace(Regex("\\s*\\n\\s*"), " "))
+            }
 
         fun failures(messages: RuntimeCatalogMessages): List<String> =
             listOfNotNull(

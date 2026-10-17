@@ -276,8 +276,9 @@ class RuntimeCatalogRepositoryTest {
         runTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val target = FakeTarget("mac")
-            // A local OpenCode installing its plugins: the first GET /agent fails, the next is empty.
-            target.agentAnswers.add { error("plugin load failed") }
+            // A local OpenCode installing its plugins: the first GET /agent fails (with a two-line
+            // message, as a decoding error has), the next is empty.
+            target.agentAnswers.add { error("Unexpected JSON token\nJSON input: [{\"hidden\":null}]") }
             target.agentAnswers.add { emptyList() }
             val registry =
                 RuntimeRegistry(
