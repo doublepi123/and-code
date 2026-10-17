@@ -1145,6 +1145,7 @@ fun AndCodeApp(
                             },
                             onSelectModel = settingsViewModel::selectModel,
                             onSelectAgent = settingsViewModel::selectAgent,
+                            onRefreshAgents = app.catalogRepository::refreshAgents,
                             selectedVariant = chatState.selectedVariant,
                             onSelectVariant = chatViewModel::selectVariant,
                             onToggleFastMode = { enabled -> chatViewModel.setFastMode(enabled) },
