@@ -441,6 +441,32 @@ class LocalRuntimeProcessLauncherTest {
     }
 
     @Test
+    fun `counts only the OpenCode server among this runtime's proot processes`() {
+        val procRoot = temporaryFolder.newFolder("proc")
+        val runtimeDirectory = File("/data/user/0/com.doublepi123.andcode/files/runtime")
+        val rootfs = runtimeDirectory.resolve("environment/rootfs").path
+        val proot = EmbeddedCommandSuite.PROOT_LIBRARY_NAME
+        procRoot.resolve("100/cmdline").apply {
+            parentFile.mkdirs()
+            writeText(
+                "$proot\u0000-r\u0000$rootfs\u0000-w\u0000/workspace\u0000/usr/local/bin/opencode\u0000serve\u0000" +
+                    "--hostname\u0000127.0.0.1\u0000--port\u00004098",
+            )
+        }
+        // Codex's app-server runs from the same runtime directory and must not count as OpenCode.
+        procRoot.resolve("101/cmdline").apply {
+            parentFile.mkdirs()
+            writeText("$proot\u0000-r\u0000$rootfs\u0000/usr/local/bin/codex\u0000app-server")
+        }
+        procRoot.resolve("102/cmdline").apply {
+            parentFile.mkdirs()
+            writeText("$proot\u0000-r\u0000$rootfs\u0000/usr/local/bin/opencode\u0000run")
+        }
+
+        assertEquals(listOf(100L), findOpenCodeServerPids(runtimeDirectory, procRoot))
+    }
+
+    @Test
     fun `exit record starts null and restart count starts at zero`() {
         val launcher =
             LocalRuntimeProcessLauncher(

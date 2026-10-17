@@ -927,6 +927,7 @@
     <string name="runtime_error_start_after_rollback_failed">回退后无法启动 OpenCode</string>
     <string name="runtime_error_command_timed_out">检查超时</string>
     <string name="runtime_error_restored_but_cannot_start">已恢复 OpenCode %1$s，但无法启动：%2$s</string>
+    <string name="runtime_error_port_in_use">端口 %1$d 已被其他进程占用</string>
     <string name="runtime_step_preparing_update">正在准备更新</string>
     <string name="runtime_step_rolling_back_to">正在回退到 OpenCode %1$s</string>
     <string name="install_step_installing_claude_code">正在安装 Claude Code</string>
@@ -1197,4 +1198,6 @@
     <string name="full_development_tools_installed">完整开发工具已安装</string>
     <string name="install_full_development_tools_button">安装完整工具链</string>
     <string name="runtime_full_development_tools_start_failed">无法开始安装开发工具</string>
+    <string name="runtime_stopped_manually_title">已手动停止</string>
+    <string name="runtime_stopped_manually_hint">在你手动启动前，OpenCode 不会自动启动。</string>
 </resources>

@@ -262,6 +262,8 @@ fun ChatHomeScreen(
     onLoadDraft: (String) -> String? = { null },
     /** Keeps the composer's unsent text for a session; blank text clears it. */
     onSaveDraft: (String, String) -> Unit = { _, _ -> },
+    localRuntimeStoppedManually: Boolean = false,
+    onStartLocalRuntime: () -> Unit = {},
 ) {
     // Saved state, not plain remember: the Activity is recreated on rotation and other
     // configuration changes, and a remembered field would come back empty. The TextFieldValue
@@ -469,6 +471,10 @@ fun ChatHomeScreen(
                         actionIconContentColor = MaterialTheme.colorScheme.onBackground,
                     ),
             )
+
+            if (localRuntimeStoppedManually) {
+                LocalRuntimeStoppedBanner(onStart = onStartLocalRuntime)
+            }
 
             state.parentSession?.let { parent ->
                 SubagentSessionBanner(
@@ -904,6 +910,41 @@ private fun SubagentSessionBanner(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocalRuntimeStoppedBanner(onStart: () -> Unit) {
+    Surface(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 2.dp)
+                .testTag("local-runtime-stopped-banner"),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.runtime_stopped_manually_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = stringResource(R.string.runtime_stopped_manually_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+            Button(onClick = onStart) {
+                Text(stringResource(R.string.runtime_start_button))
             }
         }
     }
@@ -2365,5 +2406,13 @@ private fun ChatHomeScreenCodexFastPreview() {
             onOpenRemoteSetup = {},
             onOpenDrawer = {},
         )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 360)
+@Composable
+private fun LocalRuntimeStoppedBannerPreview() {
+    AndCodeTheme {
+        LocalRuntimeStoppedBanner(onStart = {})
     }
 }

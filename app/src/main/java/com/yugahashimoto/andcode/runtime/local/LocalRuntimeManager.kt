@@ -50,6 +50,13 @@ class LocalRuntimeManager(
     private val runtimeDirectory: File,
     private val abi: String,
     private val portProbe: (Int) -> Boolean = ::defaultPortProbe,
+    /** Whether the server answering on a port is ours; see [defaultServerOwnershipProbe]. */
+    private val ownershipProbe: (Int, String) -> Boolean = ::defaultServerOwnershipProbe,
+    /**
+     * Whether our own OpenCode server proot is alive, by scanning /proc. Only the server counts:
+     * Claude Code, Codex and terminal sessions run proot from the same runtime directory too.
+     */
+    private val managedRuntimeRunning: () -> Boolean = { findOpenCodeServerPids(runtimeDirectory).isNotEmpty() },
     private val installer: LocalRuntimeInstaller? = null,
     private val processLauncher: LocalRuntimeProcessLauncher? = null,
     /** Whether the server process we started is still alive, independent of whether it answers. */
@@ -74,6 +81,12 @@ class LocalRuntimeManager(
             encodeDefaults = true
         }
     private val operationMutex = Mutex()
+
+    /**
+     * The port the start path last found held by a server that is not ours, or null. Lets
+     * [computeStatus] report that port as Broken without probing it on every status read.
+     */
+    @Volatile private var foreignPortOwner: Int? = null
     private val mutableState = MutableStateFlow(computeStatus())
     val state: StateFlow<LocalRuntimeStatus> = mutableState.asStateFlow()
 
@@ -172,16 +185,33 @@ class LocalRuntimeManager(
 
     suspend fun stop(): Result<LocalRuntimeStatus.Stopped> =
         operationMutex.withLock {
-            runCatching {
-                withContext(Dispatchers.IO) { processLauncher?.stop() }
-                val metadata = readMetadata() ?: error("Local runtime metadata is missing")
-                LocalRuntimeStatus.Stopped(metadata.version, metadata.port).also { mutableState.value = it }
-            }.onFailure { error ->
-                mutableState.value =
-                    LocalRuntimeStatus.Broken(
-                        error.message ?: messages.stopFailed,
-                    )
-            }
+            stopLocked()
+        }
+
+    /**
+     * Stops the runtime only if [stillWanted] still holds once the operation lock is acquired.
+     *
+     * Used by the idle auto-stop: it can queue behind a newer start, and checking its own
+     * conditions before queueing would miss a start that lands while it waits. Returns false, and
+     * leaves the runtime alone, when [stillWanted] no longer holds.
+     */
+    suspend fun stopIfStillWanted(stillWanted: () -> Boolean): Boolean =
+        operationMutex.withLock {
+            if (!stillWanted()) return@withLock false
+            stopLocked()
+            true
+        }
+
+    private suspend fun stopLocked(): Result<LocalRuntimeStatus.Stopped> =
+        runCatching {
+            withContext(Dispatchers.IO) { processLauncher?.stop() }
+            val metadata = readMetadata() ?: error("Local runtime metadata is missing")
+            LocalRuntimeStatus.Stopped(metadata.version, metadata.port).also { mutableState.value = it }
+        }.onFailure { error ->
+            mutableState.value =
+                LocalRuntimeStatus.Broken(
+                    error.message ?: messages.stopFailed,
+                )
         }
 
     suspend fun deleteRuntime(): Result<LocalRuntimeStatus.NotInstalled> =
@@ -596,7 +626,17 @@ class LocalRuntimeManager(
             runCatching { installer?.provisionGuestCapabilitiesForExistingInstall() }
             // Before the server starts, so its first turn already reads the selected preset.
             applyOpenCodeSystemPrompt(installed.rootfs, systemPrompt())
-            if (!portProbe(installed.metadata.port)) launcher.start(installed)
+            if (!portProbe(installed.metadata.port)) {
+                launcher.start(installed)
+            } else if (!processAlive() && !ownsPort(installed.metadata.port)) {
+                // Something else holds the port: launching would fail, and reporting Ready would
+                // point the chat at a foreign server. Surface it instead; never kill it.
+                foreignPortOwner = installed.metadata.port
+                val reason = messages.portInUse(installed.metadata.port)
+                mutableState.value = LocalRuntimeStatus.Broken(reason)
+                error(reason)
+            }
+            foreignPortOwner = null
             val ready =
                 LocalRuntimeStatus.Ready(
                     installed.metadata.version,
@@ -605,6 +645,18 @@ class LocalRuntimeManager(
             mutableState.value = ready
             ready
         }
+
+    /**
+     * Whether the server on [port] is ours. Only called from the start path, where an open port
+     * would otherwise be taken as proof of a running runtime, so the blocking probe is acceptable.
+     *
+     * Our own proot process counts as ours without probing: that is the server we started, merely
+     * slow to answer. The probe is reserved for a listener this app did not launch.
+     */
+    private fun ownsPort(port: Int): Boolean {
+        if (managedRuntimeRunning()) return true
+        return ownershipProbe(port, LocalServerAuth.password(runtimeDirectory))
+    }
 
     private fun computeStatus(): LocalRuntimeStatus {
         if (abi !in SUPPORTED_ABIS) return LocalRuntimeStatus.UnsupportedAbi(abi)
@@ -627,7 +679,13 @@ class LocalRuntimeManager(
         if (metadata.version.isBlank() || metadata.port !in 1..65535) {
             return LocalRuntimeStatus.Broken("Runtime metadata contains invalid values")
         }
-        if (portProbe(metadata.port)) return LocalRuntimeStatus.Ready(metadata.version, metadata.port)
+        if (portProbe(metadata.port)) {
+            // Open, but not ours, if the start path found a foreign server there. Cached rather than
+            // probed here: this runs often, and an HTTP probe must not sit on that path.
+            if (foreignPortOwner == metadata.port) return LocalRuntimeStatus.Broken(messages.portInUse(metadata.port))
+            return LocalRuntimeStatus.Ready(metadata.version, metadata.port)
+        }
+        foreignPortOwner = null
         // A missed probe is not proof of death. Our own child process is: if it is still running,
         // the server exists and is merely too busy to answer, and restarting it would destroy work
         // in progress rather than recover anything.

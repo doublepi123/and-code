@@ -192,7 +192,7 @@ The setup process (triggered from Workspaces):
 4. Validates SHA-256 checksums for both
 5. Extracts to a private app directory
 6. Installs Git, bash, curl, ripgrep, and CA certificates inside Alpine
-7. Starts the agent server on `127.0.0.1:4097`
+7. Starts the agent server on `127.0.0.1:4098`
 8. Switches the app to the local runtime
 
 Pinned versions (updatable via app releases without agent changes; see [`local-runtime-manifest.json`](app/src/main/assets/local-runtime-manifest.json)):

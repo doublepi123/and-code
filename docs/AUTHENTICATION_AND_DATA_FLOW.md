@@ -14,7 +14,7 @@ that implement each flow, not from how the feature is expected to behave.
   (`openCodeUrl`, `sha256`).
 - **Install location:** extracted into the app's private on-device Alpine rootfs by
   `LocalRuntimeInstaller`/`LocalOpenCodeBackend`, after SHA-256 verification.
-- **Launch:** started as a local HTTP server bound to `127.0.0.1:4097` inside the Alpine PRoot
+- **Launch:** started as a local HTTP server bound to `127.0.0.1:4098` inside the Alpine PRoot
   sandbox (`LocalOpenCodeBackend`); AndCode talks to it over `OpenCodeApiClient` like any OpenCode
   client would. For **remote OpenCode**, AndCode instead connects to an OpenCode server you already
   run on your own PC/Mac/Linux (`RemoteOpenCodeBackend`), given a URL/username/password you supply.

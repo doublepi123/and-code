@@ -40,7 +40,7 @@
 - [x] Alpine minirootfs導入
 - [x] 公式OpenCode musl配布物のSHA-256検証
 - [x] Git / Bash / curl / SSH / CA証明書 / ripgrep / libstdc++の自動導入
-- [x] `127.0.0.1:4097`限定起動
+- [x] `127.0.0.1:4098`限定起動
 - [x] Foreground Serviceによる起動・停止
 - [x] OpenCode 1.18.3 health・モデル・エージェント・推論の実動作
 - [x] セットアップ・修復UI

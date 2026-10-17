@@ -240,6 +240,16 @@ class LocalRuntimeInstaller(
             }
         }
 
+    /**
+     * Whether an install or update was interrupted and left state that the start path repairs: a
+     * rollback copy of the environment (fixed by [recoverInterruptedActivation]) or an in-app update
+     * journal (fixed by the update engine's recover step in the manager's start). A plain
+     * file-existence check, so it is cheap enough for the foreground-return path; it takes no lock.
+     */
+    fun hasInterruptedActivation(): Boolean =
+        File(runtimeDirectory, "environment.rollback").isDirectory ||
+            INTERRUPTED_UPDATE_JOURNALS.any { name -> File(runtimeDirectory, name).isFile }
+
     fun recoverInterruptedActivation(): Boolean =
         accessCoordinator.write {
             recoverInterruptedRuntimeEnvironment(
@@ -259,6 +269,7 @@ class LocalRuntimeInstaller(
         accessCoordinator.write {
             val active = File(runtimeDirectory, "environment")
             normalizeRuntimeSymlinks(active)
+            migrateLegacyRuntimePort(runtimeDirectory, manifestReader::port, json)
             val metadataFile = File(runtimeDirectory, METADATA_FILE)
             val rootfs = File(active, "rootfs")
             if (!metadataFile.isFile || !rootfs.isDirectory) return@write null
@@ -685,6 +696,13 @@ class LocalRuntimeInstaller(
 
     internal companion object {
         private const val METADATA_FILE = "metadata.json"
+
+        /**
+         * Journals [LocalRuntimeUpdater] leaves behind when an update or rollback is interrupted.
+         * Mirrors the names in its companion; [LocalRuntimeManager.startLocked] runs its recover()
+         * for these, so they count as an interrupted activation.
+         */
+        private val INTERRUPTED_UPDATE_JOURNALS = listOf("update-transaction.json", "rollback-transaction.json")
         private const val BROWSER_MCP_NAME = "and-code-browser"
         private const val BROWSER_MCP_BIN = "/usr/local/bin/andcode-browser-mcp.py"
         private const val BROWSER_MCP_TIMEOUT_MILLIS = 30000

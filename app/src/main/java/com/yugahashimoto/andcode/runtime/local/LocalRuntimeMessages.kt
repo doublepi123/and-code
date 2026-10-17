@@ -68,6 +68,9 @@ interface LocalRuntimeMessages {
         reason: String,
     ): String
 
+    /** Shown when the local port is held by a server that is not ours. */
+    fun portInUse(port: Int): String
+
     /**
      * English fallbacks, used by unit tests and by any construction path that has no [Context].
      * Production wiring always injects [AndroidLocalRuntimeMessages].
@@ -129,6 +132,8 @@ interface LocalRuntimeMessages {
             version: String,
             reason: String,
         ) = "Restored OpenCode $version but it will not start: $reason"
+
+        override fun portInUse(port: Int) = "Port $port is in use by another process"
     }
 }
 
@@ -189,4 +194,6 @@ class AndroidLocalRuntimeMessages(private val context: Context) : LocalRuntimeMe
         version: String,
         reason: String,
     ): String = context.getString(R.string.runtime_error_restored_but_cannot_start, version, reason)
+
+    override fun portInUse(port: Int): String = context.getString(R.string.runtime_error_port_in_use, port)
 }

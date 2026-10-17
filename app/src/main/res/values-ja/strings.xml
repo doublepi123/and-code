@@ -939,6 +939,7 @@
     <string name="runtime_error_start_after_rollback_failed">ロールバック後の起動に失敗しました</string>
     <string name="runtime_error_command_timed_out">確認がタイムアウトしました</string>
     <string name="runtime_error_restored_but_cannot_start">OpenCode %1$sを復元しましたが起動できません: %2$s</string>
+    <string name="runtime_error_port_in_use">ポート %1$d は別のプロセスが使用中です</string>
     <string name="runtime_step_preparing_update">更新を準備しています</string>
     <string name="runtime_step_rolling_back_to">OpenCode %1$sへロールバックしています</string>
     <string name="install_step_installing_claude_code">Claude Codeを導入しています</string>
@@ -1217,4 +1218,6 @@
     <string name="full_development_tools_installed">完全な開発ツールをインストール済み</string>
     <string name="install_full_development_tools_button">完全なツールチェーンをインストール</string>
     <string name="runtime_full_development_tools_start_failed">開発ツールのインストールを開始できません</string>
+    <string name="runtime_stopped_manually_title">手動で停止しました</string>
+    <string name="runtime_stopped_manually_hint">手動で起動するまで、OpenCodeは自動起動しません。</string>
 </resources>

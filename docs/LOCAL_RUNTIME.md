@@ -16,7 +16,7 @@ OpenCode本体はフォークしない。アプリ専用ストレージ内へLin
 - URL・サイズ・SHA-256を固定したランタイムマニフェスト
 - 一時領域への展開と、成功後だけ本番環境へ切り替えるインストール
 - Alpine内へのGit、Bash、curl、OpenSSH client、CA証明書、ripgrep、libstdc++導入
-- `127.0.0.1:4097`限定のOpenCodeサーバー起動
+- `127.0.0.1:4098`限定のOpenCodeサーバー起動
 - Foreground Serviceによるセットアップ・起動・停止・稼働監視・自動復旧
 - 未導入、導入中、起動中、停止中、稼働中、破損、未対応ABIの状態管理
 - 作業先画面からのセットアップ、起動、停止、修復・再セットアップ
@@ -88,7 +88,7 @@ opencode --versionを確認
 ↓
 環境を本番ディレクトリへ切り替え
 ↓
-opencode serve --hostname 127.0.0.1 --port 4097
+opencode serve --hostname 127.0.0.1 --port 4098
 ↓
 /global/healthが成功したらReady
 ```

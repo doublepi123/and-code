@@ -69,4 +69,7 @@ internal fun shouldRestoreOnForegroundReturn(
     status: LocalRuntimeStatus,
     idleStopInProgress: Boolean,
     userStoppedRuntime: Boolean,
-): Boolean = !userStoppedRuntime && (status is LocalRuntimeStatus.Stopped || idleStopInProgress)
+    interruptedActivationPending: Boolean = false,
+): Boolean =
+    !userStoppedRuntime &&
+        (status is LocalRuntimeStatus.Stopped || idleStopInProgress || (status is LocalRuntimeStatus.Broken && interruptedActivationPending))

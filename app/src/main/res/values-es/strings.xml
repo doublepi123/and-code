@@ -933,6 +933,7 @@
     <string name="runtime_error_start_after_rollback_failed">No se pudo iniciar OpenCode tras volver atrás</string>
     <string name="runtime_error_command_timed_out">La comprobación superó el tiempo límite</string>
     <string name="runtime_error_restored_but_cannot_start">Se restauró OpenCode %1$s pero no arranca: %2$s</string>
+    <string name="runtime_error_port_in_use">El puerto %1$d está en uso por otro proceso</string>
     <string name="runtime_step_preparing_update">Preparando la actualización</string>
     <string name="runtime_step_rolling_back_to">Volviendo a OpenCode %1$s</string>
     <string name="install_step_installing_claude_code">Instalando Claude Code</string>
@@ -1203,4 +1204,6 @@
     <string name="full_development_tools_installed">Todas las herramientas de desarrollo están instaladas</string>
     <string name="install_full_development_tools_button">Instalar cadena completa</string>
     <string name="runtime_full_development_tools_start_failed">No se pudo iniciar la instalación de herramientas</string>
+    <string name="runtime_stopped_manually_title">Detenido manualmente</string>
+    <string name="runtime_stopped_manually_hint">OpenCode no se iniciará automáticamente hasta que lo inicies.</string>
 </resources>

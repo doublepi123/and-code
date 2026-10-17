@@ -942,6 +942,7 @@
     <string name="runtime_error_start_after_rollback_failed">تعذّر تشغيل OpenCode بعد الرجوع</string>
     <string name="runtime_error_command_timed_out">انتهت مهلة التحقق</string>
     <string name="runtime_error_restored_but_cannot_start">تمت استعادة OpenCode %1$s لكنه لا يعمل: %2$s</string>
+    <string name="runtime_error_port_in_use">المنفذ %1$d قيد الاستخدام من عملية أخرى</string>
     <string name="runtime_step_preparing_update">جارٍ تحضير التحديث</string>
     <string name="runtime_step_rolling_back_to">جارٍ الرجوع إلى OpenCode %1$s</string>
     <string name="install_step_installing_claude_code">جارٍ تثبيت Claude Code</string>
@@ -1212,4 +1213,6 @@
     <string name="full_development_tools_installed">تم تثبيت أدوات التطوير الكاملة</string>
     <string name="install_full_development_tools_button">تثبيت مجموعة الأدوات الكاملة</string>
     <string name="runtime_full_development_tools_start_failed">تعذر بدء تثبيت أدوات التطوير</string>
+    <string name="runtime_stopped_manually_title">تم الإيقاف يدويًا</string>
+    <string name="runtime_stopped_manually_hint">لن يبدأ OpenCode تلقائيًا حتى تشغّله يدويًا.</string>
 </resources>

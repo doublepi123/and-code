@@ -36,6 +36,7 @@ class LocalRuntimeManagerTest {
                     runtimeDirectory = temporaryFolder.root,
                     abi = "arm64-v8a",
                     portProbe = { true },
+                    ownershipProbe = { _, _ -> true },
                     processLauncher = LocalRuntimeProcessLauncher(temporaryFolder.root, { true }),
                     systemPrompt = { "Focus on debugging." },
                 )
@@ -59,6 +60,7 @@ class LocalRuntimeManagerTest {
                     runtimeDirectory = temporaryFolder.root,
                     abi = "arm64-v8a",
                     portProbe = { true },
+                    ownershipProbe = { _, _ -> true },
                     processLauncher = LocalRuntimeProcessLauncher(temporaryFolder.root, { true }),
                     systemPrompt = { null },
                 )

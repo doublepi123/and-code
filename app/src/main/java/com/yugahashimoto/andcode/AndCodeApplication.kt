@@ -634,6 +634,7 @@ class AndCodeApplication : Application() {
                         status = localRuntimeManager.status(),
                         idleStopInProgress = idleStopInProgress.value,
                         userStoppedRuntime = settings.localRuntimeStoppedByUser,
+                        interruptedActivationPending = localRuntimeInstaller.hasInterruptedActivation(),
                     )
                 if (shouldRestore) {
                     RuntimeAutoStartInitializer.restoreIfConfigured(this@AndCodeApplication, RuntimeAutoStartTrigger.AppLaunch)

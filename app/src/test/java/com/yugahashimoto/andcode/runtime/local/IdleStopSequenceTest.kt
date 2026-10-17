@@ -1,5 +1,7 @@
 package com.yugahashimoto.andcode.runtime.local
 
+import com.yugahashimoto.andcode.runtime.LocalRuntimeStatus
+import com.yugahashimoto.andcode.startup.shouldRestoreOnForegroundReturn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -7,6 +9,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -77,6 +80,53 @@ class IdleStopSequenceTest {
 
             assertTrue(events.isEmpty())
         }
+
+    /**
+     * Interleaving 1: the watchdog decided to stop, then a foreground return arrives before the stop
+     * coroutine runs. The in-progress flag is set synchronously with the decision, so the real
+     * restore predicate treats the return as needing a restore.
+     */
+    @Test
+    fun `a foreground return between the idle decision and the stop still restores`() {
+        assertTrue(
+            shouldRestoreOnForegroundReturn(
+                status = LocalRuntimeStatus.Ready("1.18.5", 4098),
+                idleStopInProgress = true,
+                userStoppedRuntime = false,
+            ),
+        )
+    }
+
+    /**
+     * Interleaving 2: a start lands while the idle stop waits for the manager lock. The real
+     * still-applies decision sees the newer command as superseding, so the stop is declined.
+     */
+    @Test
+    fun `a start that lands during the idle stop supersedes it`() {
+        assertFalse(
+            idleStopStillApplies(
+                idleStopRequested = false,
+                status = LocalRuntimeStatus.Ready("1.18.5", 4098),
+                activeTags = setOf(IDLE_STOP_LEASE_TAG),
+                appInForeground = false,
+                adbConnected = false,
+            ),
+        )
+    }
+
+    /** The uncontested case still goes ahead: nothing newer arrived and the runtime is idle. */
+    @Test
+    fun `an uncontested idle stop still applies`() {
+        assertTrue(
+            idleStopStillApplies(
+                idleStopRequested = true,
+                status = LocalRuntimeStatus.Ready("1.18.5", 4098),
+                activeTags = setOf(IDLE_STOP_LEASE_TAG),
+                appInForeground = false,
+                adbConnected = false,
+            ),
+        )
+    }
 
     /**
      * A cancellation landing mid-stop still has to clear the flag: the alternative is a service

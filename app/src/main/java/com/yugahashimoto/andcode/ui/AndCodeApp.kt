@@ -98,7 +98,9 @@ import com.yugahashimoto.andcode.feature.settings.SettingsViewModel
 import com.yugahashimoto.andcode.feature.wakeword.WakeWordService
 import com.yugahashimoto.andcode.feature.wakeword.WakeWordSettingsPolicy
 import com.yugahashimoto.andcode.feature.workspace.WorkspaceViewModel
+import com.yugahashimoto.andcode.runtime.LocalRuntimeStatus
 import com.yugahashimoto.andcode.runtime.RuntimeState
+import com.yugahashimoto.andcode.runtime.RuntimeType
 import com.yugahashimoto.andcode.runtime.WorkspaceRef
 import com.yugahashimoto.andcode.runtime.local.GitCloneResult
 import com.yugahashimoto.andcode.runtime.local.LocalRuntimeOperationResult
@@ -227,6 +229,9 @@ fun AndCodeApp(
                 },
         )
     val workspaceState by workspaceViewModel.state.collectAsState()
+    // The preference has no flow; the workspace state already observes every runtime status change.
+    val localRuntimeStoppedByUser =
+        remember(workspaceState.localStatus) { app.settings.localRuntimeStoppedByUser }
 
     val activityViewModel: ActivityViewModel =
         viewModel(
@@ -1072,6 +1077,12 @@ fun AndCodeApp(
                             selectedAgentId = chatState.selectedAgentId ?: settingsState.agentId,
                             runtimeTargets = runtimeTargets,
                             selectedRuntimeId = selectedRuntime?.id,
+                            localRuntimeStoppedManually =
+                                selectedRuntime?.type == RuntimeType.LOCAL &&
+                                    selectedRuntime?.agent == com.yugahashimoto.andcode.runtime.LocalAgent.OPEN_CODE &&
+                                    workspaceState.localStatus is LocalRuntimeStatus.Stopped &&
+                                    localRuntimeStoppedByUser,
+                            onStartLocalRuntime = workspaceViewModel::startLocalRuntime,
                             claudePermissionMode =
                                 workspaceState.claude
                                     .takeIf { selectedRuntime?.agent == com.yugahashimoto.andcode.runtime.LocalAgent.CLAUDE_CODE }
