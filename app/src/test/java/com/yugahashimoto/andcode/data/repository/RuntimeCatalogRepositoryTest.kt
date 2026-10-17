@@ -412,7 +412,8 @@ class RuntimeCatalogRepositoryTest {
                 )
             val repository = RuntimeCatalogRepository(registry = registry, scope = TestScope(dispatcher))
 
-            // Before the first read lands the chip has nothing yet, so it reads as loading.
+            // The load's own read has failed and published; the background retry is still to come,
+            // so the chip has nothing to pick yet and reads as loading.
             testScheduler.runCurrent()
             assertTrue(repository.state.value.agentsLoading)
 

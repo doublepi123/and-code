@@ -260,13 +260,16 @@ class RuntimeCatalogRepository(
             // Like the providers above: a read that failed or offered no agent to pick must not blank
             // a list this runtime already showed, or a flaky `GET /agent` empties a working picker.
             val loadedAgents = catalog.agents.getOrNull()
-            val agentsToUse =
-                if (loadedAgents.hasSelectableAgent()) {
-                    loadedAgents.orEmpty()
-                } else {
-                    mutableState.value.agentsFor(target).ifEmpty { loadedAgents.orEmpty() }
-                }
-            mutableState.value =
+            // Read and written in one update: a background agent retry can land between this load's
+            // fetch and its write, and taking the list from before that would put an empty one back.
+            mutableState.update { current ->
+                val agentsToUse =
+                    if (loadedAgents.hasSelectableAgent()) {
+                        loadedAgents.orEmpty()
+                    } else {
+                        current.agentsFor(target).ifEmpty { loadedAgents.orEmpty() }
+                    }
+                val agentsFound = agentsToUse.hasSelectableAgent()
                 RuntimeCatalogState(
                     runtime = target,
                     health = connection.getOrNull(),
@@ -276,10 +279,12 @@ class RuntimeCatalogRepository(
                     workspaces = catalog.workspaces.getOrDefault(emptyList()),
                     isRefreshing = false,
                     error = errors.takeIf { it.isNotEmpty() }?.joinToString("\n"),
-                    agentsError = catalog.agentsFailure(messages),
+                    // A list kept from a retry that already succeeded carries no failure of its own.
+                    agentsError = catalog.agentsFailure(messages).takeUnless { agentsFound && !loadedAgents.hasSelectableAgent() },
                     // Still loading when nothing selectable came back: the retry below takes over.
-                    agentsLoading = !agentsToUse.hasSelectableAgent(),
+                    agentsLoading = !agentsFound,
                 )
+            }
         }
         // Outside the lock: a local OpenCode installing its plugins can take tens of seconds per
         // `GET /agent`, and the rest of the catalogue - and every other refresh - must not wait on it.
@@ -318,7 +323,12 @@ class RuntimeCatalogRepository(
         if (current.runtime?.id == target.id && current.health == null) {
             // Not connected yet. A load still in flight will retry the agents itself once it
             // connects; a load that gave up gets a full refresh, not a poll of a dead server.
-            if (!current.isRefreshing) refresh()
+            if (!current.isRefreshing) {
+                // Disables the "tap to retry" item straight away, so repeated taps cannot queue one
+                // full reconnect each behind the refresh lock before the load gets to run.
+                mutableState.update { if (it.runtime?.id == target.id) it.copy(agentsLoading = true) else it }
+                refresh()
+            }
             return
         }
         synchronized(agentRetryLock) {

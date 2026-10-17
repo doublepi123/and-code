@@ -115,6 +115,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -2051,8 +2053,9 @@ private fun ModeChip(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 if (loading && selectableAgents.isEmpty()) {
+                    val loadingDescription = stringResource(R.string.chat_agents_loading)
                     CircularProgressIndicator(
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(14.dp).semantics { contentDescription = loadingDescription },
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         strokeWidth = 1.5.dp,
                     )
