@@ -83,16 +83,11 @@ class IdleStopSequenceTest {
 
     /**
      * Interleaving 1: the watchdog decided to stop, then a foreground return arrives before the stop
-     * coroutine runs. With the decision recorded synchronously, the return sees the stop as in flight
-     * and restores. Checked through the same predicate the restore path uses.
+     * coroutine runs. The in-progress flag is set synchronously with the decision, so the real
+     * restore predicate treats the return as needing a restore.
      */
     @Test
     fun `a foreground return between the idle decision and the stop still restores`() {
-        val gate = IdleStopGate()
-        val token = gate.beginIdleStop()!!
-
-        // The in-progress flag is set synchronously with the decision, so a return that lands
-        // before the stop coroutine runs still sees it and restores.
         assertTrue(
             shouldRestoreOnForegroundReturn(
                 status = LocalRuntimeStatus.Ready("1.18.5", 4098),
@@ -100,56 +95,38 @@ class IdleStopSequenceTest {
                 userStoppedRuntime = false,
             ),
         )
-        gate.finishIdleStop(token)
     }
 
     /**
-     * Interleaving 2: an ACTION_START lands while the idle stop is still running and waits on the
-     * manager lock. The stop must be declined, and the service must not be torn down.
+     * Interleaving 2: a start lands while the idle stop waits for the manager lock. The real
+     * still-applies decision sees the newer command as superseding, so the stop is declined.
      */
     @Test
-    fun `a start that lands during the idle stop wins and the stop is declined`() =
-        runTest {
-            val gate = IdleStopGate()
-            val token = gate.beginIdleStop()!!
-            var stopped = false
-            var tornDown = false
+    fun `a start that lands during the idle stop supersedes it`() {
+        assertFalse(
+            idleStopStillApplies(
+                idleStopRequested = false,
+                status = LocalRuntimeStatus.Ready("1.18.5", 4098),
+                activeTags = setOf(IDLE_STOP_LEASE_TAG),
+                appInForeground = false,
+                adbConnected = false,
+            ),
+        )
+    }
 
-            // The newer start arrives before the stop acquires the manager lock.
-            gate.onCommand()
-            runIdleStopSequence(
-                markInProgress = {},
-                stop = {
-                    // The manager's stopIfStillWanted re-checks the token under its lock.
-                    stopped = gate.isCurrent(token)
-                },
-                onStopped = {
-                    if (gate.isCurrent(token)) tornDown = true
-                },
-            )
-
-            assertFalse(stopped)
-            assertFalse(tornDown)
-        }
-
-    /** The uncontested case still tears down: nothing newer arrived, so the stop goes ahead. */
+    /** The uncontested case still goes ahead: nothing newer arrived and the runtime is idle. */
     @Test
-    fun `an uncontested idle stop still tears the service down`() =
-        runTest {
-            val gate = IdleStopGate()
-            val token = gate.beginIdleStop()!!
-            var tornDown = false
-
-            runIdleStopSequence(
-                markInProgress = {},
-                stop = {},
-                onStopped = {
-                    if (gate.isCurrent(token)) tornDown = true
-                },
-            )
-
-            assertTrue(tornDown)
-        }
+    fun `an uncontested idle stop still applies`() {
+        assertTrue(
+            idleStopStillApplies(
+                idleStopRequested = true,
+                status = LocalRuntimeStatus.Ready("1.18.5", 4098),
+                activeTags = setOf(IDLE_STOP_LEASE_TAG),
+                appInForeground = false,
+                adbConnected = false,
+            ),
+        )
+    }
 
     /**
      * A cancellation landing mid-stop still has to clear the flag: the alternative is a service

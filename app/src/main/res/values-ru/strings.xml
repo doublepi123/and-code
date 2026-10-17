@@ -936,6 +936,7 @@
     <string name="runtime_error_start_after_rollback_failed">Не удалось запустить OpenCode после отката</string>
     <string name="runtime_error_command_timed_out">Время проверки истекло</string>
     <string name="runtime_error_restored_but_cannot_start">OpenCode %1$s восстановлен, но не запускается: %2$s</string>
+    <string name="runtime_error_port_in_use">Порт %1$d занят другим процессом</string>
     <string name="runtime_step_preparing_update">Подготовка обновления</string>
     <string name="runtime_step_rolling_back_to">Откат к OpenCode %1$s</string>
     <string name="install_step_installing_claude_code">Установка Claude Code</string>

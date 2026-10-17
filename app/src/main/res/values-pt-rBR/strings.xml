@@ -933,6 +933,7 @@
     <string name="runtime_error_start_after_rollback_failed">Não foi possível iniciar o OpenCode após reverter</string>
     <string name="runtime_error_command_timed_out">A verificação excedeu o tempo limite</string>
     <string name="runtime_error_restored_but_cannot_start">OpenCode %1$s foi restaurado, mas não inicia: %2$s</string>
+    <string name="runtime_error_port_in_use">A porta %1$d está em uso por outro processo</string>
     <string name="runtime_step_preparing_update">Preparando a atualização</string>
     <string name="runtime_step_rolling_back_to">Revertendo para o OpenCode %1$s</string>
     <string name="install_step_installing_claude_code">Instalando o Claude Code</string>

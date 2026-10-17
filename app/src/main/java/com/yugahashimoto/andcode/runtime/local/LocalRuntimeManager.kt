@@ -52,6 +52,8 @@ class LocalRuntimeManager(
     private val portProbe: (Int) -> Boolean = ::defaultPortProbe,
     /** Whether the server answering on a port is ours; see [defaultServerOwnershipProbe]. */
     private val ownershipProbe: (Int, String) -> Boolean = ::defaultServerOwnershipProbe,
+    /** Whether a proot process started from this runtime directory is alive, by scanning /proc. */
+    private val managedRuntimeRunning: () -> Boolean = { findManagedRuntimeRootPids(runtimeDirectory).isNotEmpty() },
     private val installer: LocalRuntimeInstaller? = null,
     private val processLauncher: LocalRuntimeProcessLauncher? = null,
     /** Whether the server process we started is still alive, independent of whether it answers. */
@@ -627,7 +629,7 @@ class LocalRuntimeManager(
                 // Something else holds the port: launching would fail, and reporting Ready would
                 // point the chat at a foreign server. Surface it instead; never kill it.
                 foreignPortOwner = installed.metadata.port
-                val reason = portInUseReason(installed.metadata.port)
+                val reason = messages.portInUse(installed.metadata.port)
                 mutableState.value = LocalRuntimeStatus.Broken(reason)
                 error(reason)
             }
@@ -644,8 +646,14 @@ class LocalRuntimeManager(
     /**
      * Whether the server on [port] is ours. Only called from the start path, where an open port
      * would otherwise be taken as proof of a running runtime, so the blocking probe is acceptable.
+     *
+     * Our own proot process counts as ours without probing: that is the server we started, merely
+     * slow to answer. The probe is reserved for a listener this app did not launch.
      */
-    private fun ownsPort(port: Int): Boolean = ownershipProbe(port, LocalServerAuth.password(runtimeDirectory))
+    private fun ownsPort(port: Int): Boolean {
+        if (managedRuntimeRunning()) return true
+        return ownershipProbe(port, LocalServerAuth.password(runtimeDirectory))
+    }
 
     private fun computeStatus(): LocalRuntimeStatus {
         if (abi !in SUPPORTED_ABIS) return LocalRuntimeStatus.UnsupportedAbi(abi)
@@ -671,7 +679,7 @@ class LocalRuntimeManager(
         if (portProbe(metadata.port)) {
             // Open, but not ours, if the start path found a foreign server there. Cached rather than
             // probed here: this runs often, and an HTTP probe must not sit on that path.
-            if (foreignPortOwner == metadata.port) return LocalRuntimeStatus.Broken(portInUseReason(metadata.port))
+            if (foreignPortOwner == metadata.port) return LocalRuntimeStatus.Broken(messages.portInUse(metadata.port))
             return LocalRuntimeStatus.Ready(metadata.version, metadata.port)
         }
         foreignPortOwner = null

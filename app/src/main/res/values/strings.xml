@@ -929,6 +929,7 @@
     <string name="runtime_error_start_after_rollback_failed">Could not start OpenCode after reverting</string>
     <string name="runtime_error_command_timed_out">The check timed out</string>
     <string name="runtime_error_restored_but_cannot_start">Restored OpenCode %1$s but it will not start: %2$s</string>
+    <string name="runtime_error_port_in_use">Port %1$d is in use by another process</string>
     <string name="runtime_step_preparing_update">Preparing the update</string>
     <string name="runtime_step_rolling_back_to">Reverting to OpenCode %1$s</string>
     <string name="install_step_installing_claude_code">Installing Claude Code</string>

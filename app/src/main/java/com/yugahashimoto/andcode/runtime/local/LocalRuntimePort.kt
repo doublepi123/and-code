@@ -79,6 +79,3 @@ internal fun defaultServerOwnershipProbe(
             connection.disconnect()
         }
     }.getOrDefault(false)
-
-/** The status reason shown when the local port is held by a server that is not ours. */
-internal fun portInUseReason(port: Int): String = "Port $port is in use by another process"

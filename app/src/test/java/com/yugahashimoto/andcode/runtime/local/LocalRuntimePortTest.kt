@@ -16,7 +16,11 @@ class LocalRuntimePortTest {
     @get:Rule
     val temporaryFolder = TemporaryFolder()
 
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
 
     private fun writeMetadata(port: Int) {
         File(temporaryFolder.root, "metadata.json").writeText(
@@ -31,7 +35,7 @@ class LocalRuntimePortTest {
     fun `a legacy 4097 install is moved to the manifest port`() {
         writeMetadata(LEGACY_LOCAL_RUNTIME_PORT)
 
-        val migrated = migrateLegacyRuntimePort(temporaryFolder.root, { 4098 }, json)
+        val migrated = migrateLegacyRuntimePort(runtimeDirectory = temporaryFolder.root, targetPort = { 4098 }, json = json)
 
         assertTrue(migrated)
         assertEquals(4098, readPort())
@@ -42,7 +46,7 @@ class LocalRuntimePortTest {
     fun `a non-legacy port is left alone`() {
         writeMetadata(5555)
 
-        assertFalse(migrateLegacyRuntimePort(temporaryFolder.root, { 4098 }, json))
+        assertFalse(migrateLegacyRuntimePort(runtimeDirectory = temporaryFolder.root, targetPort = { 4098 }, json = json))
         assertEquals(5555, readPort())
     }
 
@@ -52,22 +56,26 @@ class LocalRuntimePortTest {
         writeMetadata(4098)
         var consulted = false
 
-        migrateLegacyRuntimePort(temporaryFolder.root, {
-            consulted = true
-            4098
-        }, json)
+        migrateLegacyRuntimePort(
+            runtimeDirectory = temporaryFolder.root,
+            targetPort = {
+                consulted = true
+                4098
+            },
+            json = json,
+        )
 
         assertFalse(consulted)
     }
 
     @Test
     fun `missing metadata is a no-op`() {
-        assertFalse(migrateLegacyRuntimePort(temporaryFolder.root, { 4098 }, json))
+        assertFalse(migrateLegacyRuntimePort(runtimeDirectory = temporaryFolder.root, targetPort = { 4098 }, json = json))
     }
 
     @Test
     fun `the port-in-use reason names the port`() {
-        assertEquals("Port 4098 is in use by another process", portInUseReason(4098))
+        assertEquals("Port 4098 is in use by another process", LocalRuntimeMessages.portInUse(4098))
     }
 
     /**
@@ -85,6 +93,7 @@ class LocalRuntimePortTest {
                     abi = "arm64-v8a",
                     portProbe = { true },
                     ownershipProbe = { _, _ -> false },
+                    managedRuntimeRunning = { false },
                     processLauncher = LocalRuntimeProcessLauncher(temporaryFolder.root, { true }),
                 )
 
@@ -98,6 +107,36 @@ class LocalRuntimePortTest {
                 LocalRuntimeStatus.Broken("Port 4098 is in use by another process"),
                 manager.state.value,
             )
+        }
+
+    /**
+     * A proot we started is already on the port: it is ours, so the HTTP probe must not run. This
+     * is the slow-to-answer case the probe would otherwise misread as a foreign server.
+     */
+    @Test
+    fun `a managed runtime already running is trusted without probing the port owner`() =
+        runBlocking {
+            val rootfs = temporaryFolder.newFolder("rootfs-owned")
+            var probed = false
+            val manager =
+                LocalRuntimeManager(
+                    runtimeDirectory = temporaryFolder.root,
+                    abi = "arm64-v8a",
+                    portProbe = { true },
+                    ownershipProbe = { _, _ ->
+                        probed = true
+                        false
+                    },
+                    managedRuntimeRunning = { true },
+                    processLauncher = LocalRuntimeProcessLauncher(temporaryFolder.root, { true }),
+                    systemPrompt = { null },
+                )
+
+            val ready = manager.startInstalled(installedRuntime(rootfs, 4098))
+
+            assertFalse(probed)
+            assertEquals("1.18.5", ready.version)
+            assertEquals(4098, ready.port)
         }
 
     private fun installedRuntime(

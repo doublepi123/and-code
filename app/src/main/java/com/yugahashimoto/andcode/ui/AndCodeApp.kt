@@ -98,12 +98,12 @@ import com.yugahashimoto.andcode.feature.settings.SettingsViewModel
 import com.yugahashimoto.andcode.feature.wakeword.WakeWordService
 import com.yugahashimoto.andcode.feature.wakeword.WakeWordSettingsPolicy
 import com.yugahashimoto.andcode.feature.workspace.WorkspaceViewModel
+import com.yugahashimoto.andcode.runtime.LocalRuntimeStatus
 import com.yugahashimoto.andcode.runtime.RuntimeState
 import com.yugahashimoto.andcode.runtime.RuntimeType
 import com.yugahashimoto.andcode.runtime.WorkspaceRef
 import com.yugahashimoto.andcode.runtime.local.GitCloneResult
 import com.yugahashimoto.andcode.runtime.local.LocalRuntimeOperationResult
-import com.yugahashimoto.andcode.runtime.local.LocalRuntimeStatus
 import com.yugahashimoto.andcode.ui.components.SessionStatus
 import com.yugahashimoto.andcode.ui.navigation.ClaudeSettingsActions
 import com.yugahashimoto.andcode.ui.navigation.DRAWER_ROOT_ROUTES
