@@ -200,7 +200,7 @@ class RuntimeCatalogRepository(
                 supervisorScope {
                     val sessions = async { runCatching { target.listSessions() } }
                     val providers = async { runCatching { target.listProviders() } }
-                    val agents = async { runCatching { target.listAgents() } }
+                    val agents = async { loadAgents(target) }
                     val workspaces = async { runCatching { target.listWorkspaces() } }
                     LoadedCatalog(
                         sessions = sessions.await(),
@@ -249,6 +249,38 @@ class RuntimeCatalogRepository(
         }
     }
 
+    /**
+     * The runtime's agents, retried a few times when the first answer is a failure or an empty list.
+     *
+     * A local OpenCode with plugins (oh-my-opencode-slim, opencode-mem, ...) installs them on its
+     * first `GET /agent` after a start, which can take tens of seconds or fail outright. That one
+     * answer used to be final until something else refreshed the catalogue, so the agent chip kept
+     * showing "build" over an empty menu that nothing would ever refill.
+     */
+    private suspend fun loadAgents(target: RuntimeTarget): Result<List<OpenCodeAgent>> {
+        var result = runCatching { target.listAgents() }
+        repeat(AGENT_RETRIES) {
+            if (result.getOrNull()?.isNotEmpty() == true || registry.selected.value?.id != target.id) return result
+            delay(AGENT_RETRY_DELAY_MILLIS)
+            result = runCatching { target.listAgents() }
+        }
+        return result
+    }
+
+    /**
+     * Re-reads only the agent list, for a picker the user opened while it was empty. Leaves the rest
+     * of the catalogue alone and keeps any agents already on screen if this read fails too.
+     */
+    fun refreshAgents() {
+        val target = registry.selected.value ?: return
+        scope.launch {
+            val agents = loadAgents(target)
+            if (registry.selected.value?.id != target.id) return@launch
+            val list = agents.getOrNull()?.takeIf { it.isNotEmpty() } ?: return@launch
+            mutableState.update { if (it.runtime?.id == target.id) it.copy(agents = list) else it }
+        }
+    }
+
     private data class LoadedCatalog(
         val sessions: Result<List<OpenCodeSession>>,
         val providers: Result<ProviderCatalog>,
@@ -267,6 +299,8 @@ class RuntimeCatalogRepository(
     private companion object {
         const val CONNECT_RETRIES = 6
         const val CONNECT_RETRY_DELAY_MILLIS = 2_500L
+        const val AGENT_RETRIES = 4
+        const val AGENT_RETRY_DELAY_MILLIS = 3_000L
     }
 }
 
