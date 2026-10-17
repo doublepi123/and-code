@@ -293,6 +293,32 @@ class RuntimeCatalogRepositoryTest {
             assertEquals(listOf("build"), repository.state.value.agents.map { it.name })
             assertEquals(3, target.agentCalls)
             assertFalse(repository.state.value.isRefreshing)
+            // The load's "Agents: ..." failure no longer applies once the retry got them.
+            assertNull(repository.state.value.error)
+        }
+
+    @Test
+    fun `an agent retry for a runtime that never connected refreshes the whole catalogue`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val target = FakeTarget("mac", connectError = IllegalStateException("offline"))
+            val registry =
+                RuntimeRegistry(
+                    store = FakeStore(selectedRuntimeId = "mac"),
+                    localTarget = FakeTarget("local-android", RuntimeType.LOCAL),
+                    remoteFactory = { target },
+                )
+            val repository = RuntimeCatalogRepository(registry = registry, scope = TestScope(dispatcher))
+            advanceUntilIdle()
+            assertNull(repository.state.value.health)
+            val callsBefore = target.agentCalls
+
+            repository.refreshAgents()
+            advanceUntilIdle()
+
+            // A full refresh retried the connection instead of asking a dead server for agents.
+            assertEquals(callsBefore, target.agentCalls)
+            assertEquals("offline", repository.state.value.error)
         }
 
     @Test

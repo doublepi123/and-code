@@ -39,6 +39,8 @@ data class RuntimeCatalogState(
     val workspaces: List<WorkspaceRef> = emptyList(),
     val isRefreshing: Boolean = false,
     val error: String? = null,
+    /** The line of [error] that is about agents, so a later successful agent read can drop it. */
+    val agentsError: String? = null,
 )
 
 class RuntimeCatalogRepository(
@@ -61,8 +63,12 @@ class RuntimeCatalogRepository(
     val state: StateFlow<RuntimeCatalogState> = mutableState.asStateFlow()
     private val refreshMutex = Mutex()
 
-    /** The one agent retry in flight, so repeated taps on an empty mode chip do not stack polls. */
-    @Volatile private var agentRetryJob: Job? = null
+    /**
+     * The one agent retry in flight and the runtime it is for, so repeated taps on an empty mode
+     * chip do not stack polls. Guarded by [agentRetryLock]: taps (main) and load (IO) both start it.
+     */
+    private var agentRetry: Pair<String, Job>? = null
+    private val agentRetryLock = Any()
 
     private val mutableAllSessions = MutableStateFlow<List<RuntimeSessionRef>>(emptyList())
 
@@ -259,6 +265,7 @@ class RuntimeCatalogRepository(
                     workspaces = catalog.workspaces.getOrDefault(emptyList()),
                     isRefreshing = false,
                     error = errors.takeIf { it.isNotEmpty() }?.joinToString("\n"),
+                    agentsError = catalog.agentsFailure(messages),
                 )
         }
         // Outside the lock: a local OpenCode installing its plugins can take tens of seconds per
@@ -298,13 +305,22 @@ class RuntimeCatalogRepository(
             refresh()
             return
         }
-        if (agentRetryJob?.isActive == true) return
-        agentRetryJob =
-            scope.launch {
-                val list = loadAgents(target).getOrNull()?.takeIf { it.hasSelectableAgent() } ?: return@launch
-                if (registry.selected.value?.id != target.id) return@launch
-                mutableState.update { if (it.runtime?.id == target.id) it.copy(agents = list) else it }
+        synchronized(agentRetryLock) {
+            val running = agentRetry
+            if (running != null && running.second.isActive) {
+                // Still polling this runtime: let it finish. A retry left over from the runtime the
+                // user switched away from would only give up, so it must not block this one's.
+                if (running.first == target.id) return
+                running.second.cancel()
             }
+            agentRetry =
+                target.id to
+                scope.launch {
+                    val list = loadAgents(target).getOrNull()?.takeIf { it.hasSelectableAgent() } ?: return@launch
+                    if (registry.selected.value?.id != target.id) return@launch
+                    mutableState.update { if (it.runtime?.id == target.id) it.withAgents(list) else it }
+                }
+        }
     }
 
     private data class LoadedCatalog(
@@ -313,11 +329,14 @@ class RuntimeCatalogRepository(
         val agents: Result<List<OpenCodeAgent>>,
         val workspaces: Result<List<WorkspaceRef>>,
     ) {
+        fun agentsFailure(messages: RuntimeCatalogMessages): String? =
+            agents.exceptionOrNull()?.let { messages.agents(it.safeMessage(messages.connectionFailed)) }
+
         fun failures(messages: RuntimeCatalogMessages): List<String> =
             listOfNotNull(
                 sessions.exceptionOrNull()?.let { messages.sessions(it.safeMessage(messages.connectionFailed)) },
                 providers.exceptionOrNull()?.let { messages.providers(it.safeMessage(messages.connectionFailed)) },
-                agents.exceptionOrNull()?.let { messages.agents(it.safeMessage(messages.connectionFailed)) },
+                agentsFailure(messages),
                 workspaces.exceptionOrNull()?.let { messages.workspaces(it.safeMessage(messages.connectionFailed)) },
             )
     }
@@ -366,3 +385,10 @@ private fun RuntimeCatalogState.agentsFor(target: RuntimeTarget): List<OpenCodeA
 
 /** Whether this answer offers at least one agent the mode chip can show. */
 private fun List<OpenCodeAgent>?.hasSelectableAgent(): Boolean = this?.selectablePrimaryAgents()?.isNotEmpty() == true
+
+/** This state with [agents] in place, and the earlier agents failure removed from [error]. */
+private fun RuntimeCatalogState.withAgents(agents: List<OpenCodeAgent>): RuntimeCatalogState {
+    val remaining =
+        error?.lineSequence()?.filterNot { it == agentsError }?.joinToString("\n")?.takeIf { it.isNotBlank() }
+    return copy(agents = agents, error = remaining, agentsError = null)
+}
