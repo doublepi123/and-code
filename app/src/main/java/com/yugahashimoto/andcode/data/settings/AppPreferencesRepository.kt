@@ -43,6 +43,8 @@ data class AppPreferences(
     val syntaxTheme: String = "one-dark",
     val toolCallDetailLevel: String = "detailed",
     val autoExpandReasoning: Boolean = false,
+    /** Codex fast mode: null follows each model's default, otherwise the user's explicit choice. */
+    val codexFastMode: Boolean? = null,
     val sendBehavior: String = "interrupt",
     val enterToSend: Boolean = false,
     val sidebarGrouping: String = "project",
@@ -93,6 +95,7 @@ class AppPreferencesRepository(
                 syntaxTheme = settings.syntaxTheme,
                 toolCallDetailLevel = settings.toolCallDetailLevel,
                 autoExpandReasoning = settings.autoExpandReasoning,
+                codexFastMode = settings.codexFastMode,
                 sendBehavior = settings.sendBehavior,
                 enterToSend = settings.enterToSend,
                 sidebarGrouping = settings.sidebarGrouping,
@@ -300,6 +303,11 @@ class AppPreferencesRepository(
     fun setAutoExpandReasoning(enabled: Boolean) {
         settings.autoExpandReasoning = enabled
         mutableState.update { it.copy(autoExpandReasoning = enabled) }
+    }
+
+    fun setCodexFastMode(enabled: Boolean?) {
+        settings.codexFastMode = enabled
+        mutableState.update { it.copy(codexFastMode = enabled) }
     }
 
     fun setSendBehavior(behavior: String) {

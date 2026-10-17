@@ -209,6 +209,42 @@ non-functional, second sandboxing layer.
   live, signed-in account. `CodexItemParser` maps the image back out of the echoed `userMessage`
   content into a `file` part, so the attachment shows in the transcript and survives a reload.
 
+## Reasoning effort and Fast mode
+
+Both come from `model/list` (verified live against `codex-cli 0.163.0`, the first version with these
+fields; older Codex versions omit them and the models simply show no effort or fast control):
+
+- **Reasoning effort**: each entry of `supportedReasoningEfforts` becomes a model variant, in the
+  server's order, so the chat's thinking chip lists them. Efforts seen so far: `low`, `medium`, `high`,
+  `xhigh`, `max`, `ultra`, plus `none` and `minimal` documented by the protocol. Each has a chip label
+  (`none` reads "Off"); an effort the app does not know yet shows its raw id capitalized. Fast mode is
+  the bolt "Fast" chip beside it, shown only for a model with a fast tier; the tier's server description
+  is its screen-reader text.
+- **Fast mode**: a model whose `serviceTiers` lists the tier named "Fast" (id `priority`), or the
+  deprecated `additionalSpeedTiers: ["fast"]`, gets `codexFastServiceTier`. The user's global choice
+  (`codexFastMode`, persisted; unset follows the model) maps to a tier as `codexServiceTier`: unset
+  requests nothing, on requests the tier id, off requests `"default"` for standard speed. Some models
+  default to the fast tier (`defaultServiceTier`), which the UI state reports as on until turned off.
+- **Every turn states its settings.** The app-server applies `effort` and `serviceTier` to subsequent
+  turns as well as the current one, so an omitted value would inherit the previous turn's: a `high` left
+  on after going back to the default, an `ultra` carried onto a different model, or a fast tier kept
+  after switching to a model without one. `CodexTarget.sendMessage` therefore always sends both, resolved
+  by `resolveCodexTurnSettings`:
+  - `effort` is the chat's chosen variant, else the model's `defaultReasoningEffort`
+    (`codexDefaultEffort`). It is omitted only when neither is known, in which case the thread keeps
+    the previous turn's effort (every model in 0.163.0's `model/list` has a default, so this is rare).
+  - `serviceTier` is the requested tier, else the model's `defaultServiceTier` (`codexDefaultServiceTier`),
+    else `"default"`.
+  - The model is the one named on the request, else the one `model/list` marks `isDefault` (first listed
+    if none is marked). Its defaults come from the catalogue the target last built; a model it has not
+    seen triggers a best-effort `model/list` re-read, retried on later turns until one read succeeds.
+    If the model is still unknown, the turn sends `serviceTier: "default"` and omits `effort`.
+  - `isDefault: boolean` is part of the generated `v2/Model.ts` in both 0.155.1 and 0.163.0.
+
+The fast fields are named `codexFast*` so they cannot collide with an OpenCode key, and they stay
+serialized so the disk catalogue cache keeps them. `serviceTier` on `PromptRequest` is built field by
+field for OpenCode and never sent there.
+
 ## Testing
 
 `CodexJsonRpcClientTest`, `CodexItemParserTest` and `CodexModelsTest` use JSON fixtures taken

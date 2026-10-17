@@ -7,6 +7,7 @@ import com.yugahashimoto.andcode.core.api.OpenCodeFileContent
 import com.yugahashimoto.andcode.core.api.OpenCodeFileNode
 import com.yugahashimoto.andcode.core.api.OpenCodeHealth
 import com.yugahashimoto.andcode.core.api.OpenCodeMessage
+import com.yugahashimoto.andcode.core.api.OpenCodeModel
 import com.yugahashimoto.andcode.core.api.OpenCodeSearchMatch
 import com.yugahashimoto.andcode.core.api.OpenCodeSession
 import com.yugahashimoto.andcode.core.api.PromptRequest
@@ -120,14 +121,31 @@ class CodexTarget(
     override suspend fun listMessages(sessionId: String): List<OpenCodeMessage> =
         withContext(Dispatchers.IO) { runtime.listMessages(sessionId) }
 
+    /** Each model's defaults from the last catalogue this target built, so a turn can state them. */
+    @Volatile private var knownModels: Map<String, OpenCodeModel> = emptyMap()
+
+    /** The `isDefault` model from the last `model/list`, for a turn that names no model. */
+    @Volatile private var knownDefaultModelId: String? = null
+
+    /** Whether [sendMessage] already re-read `model/list` successfully for a model it did not know. */
+    @Volatile private var modelsRefreshed = false
+
     override suspend fun listProviders(): ProviderCatalog =
         withContext(Dispatchers.IO) {
             // Two independent app-server round trips: run them concurrently rather than doubling
             // the latency of a call this app makes on every runtime selection and catalogue refresh.
             val models = async { runtime.modelList() }
             val signedIn = async { runtime.isSignedIn() }
-            CodexModels.catalog(models.await(), connected = signedIn.await())
+            val listing = models.await()
+            rememberModels(listing)
+            CodexModels.catalog(listing, connected = signedIn.await())
         }
+
+    private fun rememberModels(listing: JsonObject) {
+        val catalog = CodexModels.catalog(listing, connected = false)
+        knownModels = catalog.all.single().models
+        knownDefaultModelId = CodexModels.defaultModelId(listing)
+    }
 
     override suspend fun listAgents(): List<OpenCodeAgent> = CodexModels.agents()
 
@@ -229,8 +247,30 @@ class CodexTarget(
         sessionId: String,
         request: PromptRequest,
     ) {
-        withContext(Dispatchers.IO) { runtime.send(sessionId, request.text, request.modelId, request.attachments) }
+        withContext(Dispatchers.IO) {
+            val requestedModelId = request.modelId?.takeIf(String::isNotBlank)
+            var model = resolveKnownModel(requestedModelId)
+            if (model == null && !modelsRefreshed) {
+                // Once per target: the catalogue may simply not have been built yet (a turn sent
+                // before the picker loaded), and that read also fills in the default model id. Only a
+                // successful read counts, so a server still starting up is asked again next turn.
+                runCatching { rememberModels(runtime.modelList()) }.onSuccess { modelsRefreshed = true }
+                model = resolveKnownModel(requestedModelId)
+            }
+            val settings = resolveCodexTurnSettings(request.variant, request.serviceTier, model)
+            runtime.send(
+                sessionId = sessionId,
+                prompt = request.text,
+                model = request.modelId,
+                effort = settings.effort,
+                serviceTier = settings.serviceTier,
+                attachments = request.attachments,
+            )
+        }
     }
+
+    /** The cached model for [modelId], or for Codex's default model when the turn names none. */
+    private fun resolveKnownModel(modelId: String?): OpenCodeModel? = (modelId ?: knownDefaultModelId)?.let(knownModels::get)
 
     override suspend fun abortSession(sessionId: String): Boolean = withContext(Dispatchers.IO) { runtime.abort(sessionId) }
 

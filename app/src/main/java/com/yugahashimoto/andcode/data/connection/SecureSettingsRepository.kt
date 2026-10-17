@@ -409,6 +409,18 @@ class SecureSettingsRepository(context: Context) : RuntimeConnectionStore, Unrea
         get() = preferences.getBoolean(KEY_AUTO_EXPAND_REASONING, false)
         set(value) = preferences.edit().putBoolean(KEY_AUTO_EXPAND_REASONING, value).apply()
 
+    /**
+     * Codex fast mode: null follows each model's own default, true or false is an explicit choice.
+     * Stored as a removable key so "never chosen" and "chosen" stay distinct across restarts.
+     */
+    var codexFastMode: Boolean?
+        get() = if (preferences.contains(KEY_CODEX_FAST_MODE)) preferences.getBoolean(KEY_CODEX_FAST_MODE, false) else null
+        set(value) {
+            val editor = preferences.edit()
+            if (value == null) editor.remove(KEY_CODEX_FAST_MODE) else editor.putBoolean(KEY_CODEX_FAST_MODE, value)
+            editor.apply()
+        }
+
     var sendBehavior: String
         get() = preferences.getString(KEY_SEND_BEHAVIOR, "interrupt") ?: "interrupt"
         set(value) = preferences.edit().putString(KEY_SEND_BEHAVIOR, value).apply()
@@ -592,6 +604,7 @@ class SecureSettingsRepository(context: Context) : RuntimeConnectionStore, Unrea
         private const val KEY_SYNTAX_THEME = "syntax_theme"
         private const val KEY_TOOL_CALL_DETAIL_LEVEL = "tool_call_detail_level"
         private const val KEY_AUTO_EXPAND_REASONING = "auto_expand_reasoning"
+        private const val KEY_CODEX_FAST_MODE = "codex_fast_mode"
         private const val KEY_SEND_BEHAVIOR = "send_behavior"
         private const val KEY_ENTER_TO_SEND = "enter_to_send"
         private const val KEY_SIDEBAR_GROUPING = "sidebar_grouping"

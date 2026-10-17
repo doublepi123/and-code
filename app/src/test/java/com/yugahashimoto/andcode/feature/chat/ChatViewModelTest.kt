@@ -1830,6 +1830,110 @@ class ChatViewModelTest {
         }
 
     @Test
+    fun `a model with a fast tier shows fast mode off when the user has no choice`() =
+        runTest(dispatcher) {
+            val viewModel = ChatViewModel(FakeBackend())
+            advanceUntilIdle()
+
+            viewModel.selectConfiguration("openai", "gpt-6-astra", agentId = null, fastServiceTier = "priority")
+
+            assertTrue(viewModel.uiState.value.fastModeAvailable)
+            assertFalse(viewModel.uiState.value.fastModeEnabled)
+        }
+
+    @Test
+    fun `a model that defaults to fast reads as enabled until the user turns it off`() =
+        runTest(dispatcher) {
+            val viewModel = ChatViewModel(FakeBackend())
+            advanceUntilIdle()
+
+            viewModel.selectConfiguration(
+                "openai",
+                "gpt-6-astra",
+                agentId = null,
+                fastServiceTier = "priority",
+                fastByDefault = true,
+            )
+            assertTrue(viewModel.uiState.value.fastModeEnabled)
+
+            viewModel.setFastMode(false)
+            assertFalse(viewModel.uiState.value.fastModeEnabled)
+        }
+
+    @Test
+    fun `a model without a fast tier reports fast mode unavailable whatever the choice`() =
+        runTest(dispatcher) {
+            val viewModel = ChatViewModel(FakeBackend())
+            advanceUntilIdle()
+
+            viewModel.setFastMode(true)
+            viewModel.selectConfiguration("openai", "plain", agentId = null)
+
+            assertFalse(viewModel.uiState.value.fastModeAvailable)
+            assertFalse(viewModel.uiState.value.fastModeEnabled)
+        }
+
+    @Test
+    fun `setting fast mode invokes the persistence callback`() =
+        runTest(dispatcher) {
+            val saved = mutableListOf<Boolean?>()
+            val viewModel = ChatViewModel(FakeBackend(), onCodexFastModeChanged = { saved += it })
+            advanceUntilIdle()
+
+            viewModel.setFastMode(true)
+            viewModel.setFastMode(null)
+
+            assertEquals(listOf<Boolean?>(true, null), saved)
+        }
+
+    @Test
+    fun `a saved fast-mode choice is applied when the view model starts`() =
+        runTest(dispatcher) {
+            val viewModel = ChatViewModel(FakeBackend(), initialCodexFastMode = false)
+            advanceUntilIdle()
+
+            viewModel.selectConfiguration("openai", "gpt-6-astra", agentId = null, fastServiceTier = "priority", fastByDefault = true)
+
+            assertFalse(viewModel.uiState.value.fastModeEnabled)
+        }
+
+    @Test
+    fun `a prompt carries the service tier the fast choice maps to`() =
+        runTest(dispatcher) {
+            val backend = FakeBackend()
+            val viewModel = ChatViewModel(backend)
+            advanceUntilIdle()
+            viewModel.selectConfiguration("openai", "gpt-6-astra", agentId = null, fastServiceTier = "priority")
+
+            viewModel.setFastMode(true)
+            viewModel.sendMessage("on")
+            advanceUntilIdle()
+            viewModel.setFastMode(false)
+            viewModel.sendMessage("off")
+            advanceUntilIdle()
+            viewModel.setFastMode(null)
+            viewModel.sendMessage("follow")
+            advanceUntilIdle()
+
+            assertEquals(listOf("priority", "default", null), backend.sentPrompts.map { it.second.serviceTier })
+        }
+
+    @Test
+    fun `a model without a fast tier never sends a service tier`() =
+        runTest(dispatcher) {
+            val backend = FakeBackend()
+            val viewModel = ChatViewModel(backend)
+            advanceUntilIdle()
+            viewModel.selectConfiguration("claude-code", "sonnet", agentId = null)
+
+            viewModel.setFastMode(true)
+            viewModel.sendMessage("hello")
+            advanceUntilIdle()
+
+            assertNull(backend.sentPrompts.single().second.serviceTier)
+        }
+
+    @Test
     fun `dismissing the todo bar records the entry so it stays closed`() =
         runTest(dispatcher) {
             val backend = FakeBackend()

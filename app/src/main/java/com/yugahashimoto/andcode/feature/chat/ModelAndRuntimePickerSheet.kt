@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Psychology
@@ -404,6 +405,16 @@ private fun ModelRow(
                     Icon(
                         imageVector = Icons.Default.Psychology,
                         contentDescription = stringResource(R.string.cd_thinking),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+                // The same kind of hint for a Codex model with a fast tier, so the composer's Fast
+                // chip is not a surprise that only shows up after the model is picked.
+                if (model.codexFastServiceTier != null) {
+                    Icon(
+                        imageVector = Icons.Default.Bolt,
+                        contentDescription = stringResource(R.string.cd_fast_mode),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(14.dp),
                     )
