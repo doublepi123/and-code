@@ -4,11 +4,13 @@ import com.yugahashimoto.andcode.core.api.OpenCodeAgent
 import com.yugahashimoto.andcode.core.api.OpenCodeHealth
 import com.yugahashimoto.andcode.core.api.OpenCodeSession
 import com.yugahashimoto.andcode.core.api.ProviderCatalog
+import com.yugahashimoto.andcode.core.api.selectablePrimaryAgents
 import com.yugahashimoto.andcode.runtime.LocalAgent
 import com.yugahashimoto.andcode.runtime.RuntimeRegistry
 import com.yugahashimoto.andcode.runtime.RuntimeTarget
 import com.yugahashimoto.andcode.runtime.WorkspaceRef
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,6 +60,9 @@ class RuntimeCatalogRepository(
 
     val state: StateFlow<RuntimeCatalogState> = mutableState.asStateFlow()
     private val refreshMutex = Mutex()
+
+    /** The one agent retry in flight, so repeated taps on an empty mode chip do not stack polls. */
+    @Volatile private var agentRetryJob: Job? = null
 
     private val mutableAllSessions = MutableStateFlow<List<RuntimeSessionRef>>(emptyList())
 
@@ -200,7 +205,7 @@ class RuntimeCatalogRepository(
                 supervisorScope {
                     val sessions = async { runCatching { target.listSessions() } }
                     val providers = async { runCatching { target.listProviders() } }
-                    val agents = async { loadAgents(target) }
+                    val agents = async { runCatching { target.listAgents() } }
                     val workspaces = async { runCatching { target.listWorkspaces() } }
                     LoadedCatalog(
                         sessions = sessions.await(),
@@ -235,22 +240,34 @@ class RuntimeCatalogRepository(
                 }
             }
             val errors = catalog.failures(messages)
+            // Like the providers above: a read that failed or offered no agent to pick must not blank
+            // a list this runtime already showed, or a flaky `GET /agent` empties a working picker.
+            val loadedAgents = catalog.agents.getOrNull()
+            val agentsToUse =
+                if (loadedAgents.hasSelectableAgent()) {
+                    loadedAgents.orEmpty()
+                } else {
+                    mutableState.value.agentsFor(target).ifEmpty { loadedAgents.orEmpty() }
+                }
             mutableState.value =
                 RuntimeCatalogState(
                     runtime = target,
                     health = connection.getOrNull(),
                     sessions = catalog.sessions.getOrDefault(emptyList()),
                     providers = providersToUse,
-                    agents = catalog.agents.getOrDefault(emptyList()),
+                    agents = agentsToUse,
                     workspaces = catalog.workspaces.getOrDefault(emptyList()),
                     isRefreshing = false,
                     error = errors.takeIf { it.isNotEmpty() }?.joinToString("\n"),
                 )
         }
+        // Outside the lock: a local OpenCode installing its plugins can take tens of seconds per
+        // `GET /agent`, and the rest of the catalogue - and every other refresh - must not wait on it.
+        if (!mutableState.value.agentsFor(target).hasSelectableAgent()) refreshAgents()
     }
 
     /**
-     * The runtime's agents, retried a few times when the first answer is a failure or an empty list.
+     * The runtime's agents, retried a few times while the answer fails or offers nothing to pick.
      *
      * A local OpenCode with plugins (oh-my-opencode-slim, opencode-mem, ...) installs them on its
      * first `GET /agent` after a start, which can take tens of seconds or fail outright. That one
@@ -260,7 +277,7 @@ class RuntimeCatalogRepository(
     private suspend fun loadAgents(target: RuntimeTarget): Result<List<OpenCodeAgent>> {
         var result = runCatching { target.listAgents() }
         repeat(AGENT_RETRIES) {
-            if (result.getOrNull()?.isNotEmpty() == true || registry.selected.value?.id != target.id) return result
+            if (result.getOrNull().hasSelectableAgent() || registry.selected.value?.id != target.id) return result
             delay(AGENT_RETRY_DELAY_MILLIS)
             result = runCatching { target.listAgents() }
         }
@@ -268,17 +285,26 @@ class RuntimeCatalogRepository(
     }
 
     /**
-     * Re-reads only the agent list, for a picker the user opened while it was empty. Leaves the rest
-     * of the catalogue alone and keeps any agents already on screen if this read fails too.
+     * Re-reads the agent list in the background until the runtime offers one to pick, for a load
+     * whose `GET /agent` failed or for a mode chip tapped while empty.
+     *
+     * Only one retry runs at a time. A runtime that never connected gets a full [refresh] instead,
+     * so the chip does not fill in agents over an otherwise empty, errored catalogue. The rest of the
+     * catalogue is left alone, and a failed retry keeps whatever agents are already on screen.
      */
     fun refreshAgents() {
         val target = registry.selected.value ?: return
-        scope.launch {
-            val agents = loadAgents(target)
-            if (registry.selected.value?.id != target.id) return@launch
-            val list = agents.getOrNull()?.takeIf { it.isNotEmpty() } ?: return@launch
-            mutableState.update { if (it.runtime?.id == target.id) it.copy(agents = list) else it }
+        if (mutableState.value.runtime?.id == target.id && mutableState.value.health == null && !mutableState.value.isRefreshing) {
+            refresh()
+            return
         }
+        if (agentRetryJob?.isActive == true) return
+        agentRetryJob =
+            scope.launch {
+                val list = loadAgents(target).getOrNull()?.takeIf { it.hasSelectableAgent() } ?: return@launch
+                if (registry.selected.value?.id != target.id) return@launch
+                mutableState.update { if (it.runtime?.id == target.id) it.copy(agents = list) else it }
+            }
     }
 
     private data class LoadedCatalog(
@@ -333,3 +359,10 @@ internal fun shouldReplaceProviderCatalog(
     current: ProviderCatalog,
     fresh: ProviderCatalog,
 ): Boolean = fresh.connected.isNotEmpty() || current.connected.isEmpty()
+
+/** The agents on screen, but only while the state still belongs to [target]; see [providersFor]. */
+private fun RuntimeCatalogState.agentsFor(target: RuntimeTarget): List<OpenCodeAgent> =
+    if (runtime?.id == target.id) agents else emptyList()
+
+/** Whether this answer offers at least one agent the mode chip can show. */
+private fun List<OpenCodeAgent>?.hasSelectableAgent(): Boolean = this?.selectablePrimaryAgents()?.isNotEmpty() == true
