@@ -190,7 +190,7 @@ class OpenCodeV2ApiClient(
      * keep them out of the mode picker and settings.
      */
     override suspend fun agents(): List<OpenCodeAgent> =
-        getData<List<V2Agent>>("api/agent").filterNot { it.hidden }.map { agent ->
+        getData<List<V2Agent>>("api/agent").filterNot { it.hidden == true }.map { agent ->
             OpenCodeAgent(
                 name = agent.id,
                 description = agent.description,
@@ -1565,7 +1565,8 @@ private data class V2Agent(
     val id: String,
     val description: String? = null,
     val mode: String? = null,
-    val hidden: Boolean = false,
+    /** Nullable: an explicit `null` must decode as visible rather than fail the whole list. */
+    val hidden: Boolean? = null,
 )
 
 @Serializable
