@@ -2,6 +2,7 @@ package com.yugahashimoto.andcode.runtime.local
 
 import com.yugahashimoto.andcode.core.api.McpServer
 import com.yugahashimoto.andcode.core.api.OpenCodeEvent
+import com.yugahashimoto.andcode.core.api.OpenCodeModel
 import com.yugahashimoto.andcode.core.api.OpenCodeMessage
 import com.yugahashimoto.andcode.core.api.OpenCodeSession
 import com.yugahashimoto.andcode.core.api.OpenCodeTime
@@ -369,14 +370,11 @@ class CodexRuntime(
         sessionId: String,
         prompt: String,
         model: String?,
+        effort: String? = null,
+        serviceTier: String? = null,
         attachments: List<PromptAttachment> = emptyList(),
     ) {
-        val params =
-            buildJsonObject {
-                put("threadId", JsonPrimitive(sessionId))
-                put("input", codexTurnInput(prompt, attachments))
-                model?.takeIf(String::isNotBlank)?.let { put("model", JsonPrimitive(it)) }
-            }
+        val params = codexTurnStartParams(sessionId, prompt, model, effort, serviceTier, attachments)
         runCatching { call("turn/start", params) }
             .onSuccess { result ->
                 // Recorded by turn id, not just session id, so onServerEnded can evict exactly this
@@ -670,6 +668,62 @@ internal fun parseVersionLine(line: String): String = line.trim().removePrefix("
  * check reported every signed-out install as signed in.
  */
 internal fun hasSignedInAccount(accountRead: JsonObject): Boolean = accountRead["account"] is JsonObject
+
+/** The explicit `effort` and `serviceTier` one turn is sent with. `effort` is null only when unknown. */
+internal data class CodexTurnSettings(
+    val effort: String?,
+    val serviceTier: String,
+)
+
+/**
+ * Resolves what one turn is sent with. The app-server applies `effort` and `serviceTier` to later
+ * turns too, so an omitted value would inherit the previous turn's (the last model's effort, or a
+ * fast tier left on after switching to a model without one). Every turn therefore states both:
+ *
+ * - [variant] (the chat's effort choice) wins; otherwise the model's own default effort. Omitted
+ *   only when neither is known.
+ * - [requestedTier] wins when set, including an explicit `"default"`; otherwise the model's default
+ *   tier, and `"default"` (standard speed) when the model names none.
+ *
+ * A null [model] means the catalogue has no entry for the model, so there is no default to fall back
+ * on: the tier is `"default"` and the effort is left to the request alone.
+ */
+internal fun resolveCodexTurnSettings(
+    variant: String?,
+    requestedTier: String?,
+    model: OpenCodeModel?,
+): CodexTurnSettings =
+    CodexTurnSettings(
+        effort = variant?.takeIf(String::isNotBlank) ?: model?.codexDefaultEffort?.takeIf(String::isNotBlank),
+        serviceTier =
+            requestedTier?.takeIf(String::isNotBlank)
+                ?: model?.codexDefaultServiceTier?.takeIf(String::isNotBlank)
+                ?: DEFAULT_SERVICE_TIER,
+    )
+
+/** The app-server's explicit "standard speed" tier, which turns off a fast tier left on earlier. */
+internal const val DEFAULT_SERVICE_TIER = "default"
+
+/**
+ * The `turn/start` params for one prompt. [effort] and [serviceTier] are sent only when non-blank:
+ * callers that want the explicit-every-turn behaviour resolve them with [resolveCodexTurnSettings]
+ * first, so this builder just writes what it is given.
+ */
+internal fun codexTurnStartParams(
+    sessionId: String,
+    prompt: String,
+    model: String?,
+    effort: String?,
+    serviceTier: String?,
+    attachments: List<PromptAttachment>,
+): JsonObject =
+    buildJsonObject {
+        put("threadId", JsonPrimitive(sessionId))
+        put("input", codexTurnInput(prompt, attachments))
+        model?.takeIf(String::isNotBlank)?.let { put("model", JsonPrimitive(it)) }
+        effort?.takeIf(String::isNotBlank)?.let { put("effort", JsonPrimitive(it)) }
+        serviceTier?.takeIf(String::isNotBlank)?.let { put("serviceTier", JsonPrimitive(it)) }
+    }
 
 /**
  * The `turn/start` `input` array for [prompt] plus any image [attachments].

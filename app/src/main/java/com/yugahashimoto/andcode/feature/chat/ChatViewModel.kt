@@ -508,6 +508,15 @@ data class ChatUiState(
     val autoAcceptPermissions: Boolean = false,
     val contextTokensUsed: Long = 0L,
     val selectedVariant: String? = null,
+    /**
+     * Whether the selected model offers Codex's fast service tier. Only Codex sets this, and only
+     * for a model that lists the tier, so the toggle is hidden everywhere else.
+     */
+    val fastModeAvailable: Boolean = false,
+    /** Effective fast-mode state: the user's choice, or the model's own default when there is none. */
+    val fastModeEnabled: Boolean = false,
+    /** The server's own description of the fast tier, for the toggle's subtitle. */
+    val fastModeDescription: String? = null,
     val attachments: List<PromptAttachment> = emptyList(),
     val imagePreviews: List<Bitmap> = emptyList(),
     val selectedProviderId: String? = null,
@@ -547,6 +556,24 @@ data class ChatUiState(
     /** The diff dialog open on a tapped [ChatPart.Patch] card, or null when none is open. */
     val patchDiff: PatchDiffState? = null,
 )
+
+/**
+ * The `serviceTier` a prompt carries for a model whose fast tier is [fastTier], given the user's
+ * [fastMode] choice: null when the model has no fast tier or the choice still follows the model's
+ * default (Codex decides), the tier when fast mode is on, and `"default"` when it was turned off on a
+ * model that would otherwise run fast.
+ */
+internal fun codexServiceTier(
+    fastTier: String?,
+    fastMode: Boolean?,
+): String? {
+    fastTier ?: return null
+    return when (fastMode) {
+        null -> null
+        true -> fastTier
+        false -> "default"
+    }
+}
 
 class ChatViewModel(
     private val backend: OpenCodeBackend? = null,
@@ -602,6 +629,13 @@ class ChatViewModel(
      */
     private val videoNotSupportedMessage: String =
         "Video files cannot be sent directly. Remove the video and attach images instead.",
+    /**
+     * Persists the Codex fast-mode choice (null = follow the model default). Injected so the
+     * ViewModel never reaches for settings itself; absent in tests, where the state still updates.
+     */
+    private val onCodexFastModeChanged: (Boolean?) -> Unit = {},
+    /** The user's saved Codex fast-mode choice, read when the ViewModel starts. */
+    private val initialCodexFastMode: Boolean? = null,
 ) : ViewModel() {
     private val _uiState =
         MutableStateFlow(
@@ -643,6 +677,15 @@ class ChatViewModel(
     private var eventJob: Job? = null
     private var tts: TextToSpeech? = null
     private var contextLimit: Long = 0L
+
+    /** Codex fast-mode user choice; null follows the selected model's own default. */
+    private var codexFastMode: Boolean? = initialCodexFastMode
+
+    /** The selected model's Codex fast tier id, or null when that model offers no fast mode. */
+    private var selectedFastServiceTier: String? = null
+
+    /** Whether the selected model's Codex fast tier is on by default. */
+    private var selectedFastByDefault: Boolean = false
     private var recoveringTransiently = false
     private val streamedParts = mutableMapOf<String, LinkedHashMap<String, ChatPart>>()
 
@@ -860,8 +903,13 @@ class ChatViewModel(
         modelId: String?,
         agentId: String?,
         contextLimit: Long = 0L,
+        fastServiceTier: String? = null,
+        fastByDefault: Boolean = false,
+        fastDescription: String? = null,
     ) {
         this.contextLimit = contextLimit
+        selectedFastServiceTier = fastServiceTier
+        selectedFastByDefault = fastByDefault
         _uiState.update {
             val modelChanged = providerId != it.selectedProviderId || modelId != it.selectedModelId
             it.copy(
@@ -874,9 +922,41 @@ class ChatViewModel(
                 // variant straight off whatever provider set it last, for any model whose id has no
                 // effort baked in.
                 selectedVariant = if (modelChanged) null else it.selectedVariant,
+                fastModeDescription = fastDescription,
+            )
+        }
+        refreshFastMode()
+    }
+
+    /**
+     * Derives the three fast-mode fields from the model and the user's choice. Fast mode exists only
+     * for a model that lists a fast tier, so every other model reads as unavailable.
+     */
+    private fun refreshFastMode() {
+        val available = selectedFastServiceTier != null
+        _uiState.update {
+            it.copy(
+                fastModeAvailable = available,
+                fastModeEnabled = available && (codexFastMode ?: selectedFastByDefault),
             )
         }
     }
+
+    /**
+     * Sets the Codex fast-mode choice and persists it. Passing null returns to the model's default.
+     */
+    fun setFastMode(enabled: Boolean?) {
+        codexFastMode = enabled
+        onCodexFastModeChanged(enabled)
+        refreshFastMode()
+    }
+
+    /**
+     * The `serviceTier` for a prompt on the selected model: null when fast mode is unavailable or
+     * still follows the default (Codex then chooses), the model's fast tier when the user turned it
+     * on, and `"default"` when they turned it off on a model that would otherwise be fast.
+     */
+    private fun serviceTierForPrompt(): String? = codexServiceTier(selectedFastServiceTier, codexFastMode)
 
     fun setAutoAcceptPermissions(enabled: Boolean) {
         _uiState.update { it.copy(autoAcceptPermissions = enabled) }
@@ -1442,6 +1522,7 @@ class ChatViewModel(
                         agent = _uiState.value.selectedAgentId,
                         variant = _uiState.value.selectedVariant,
                         attachments = pendingAttachments,
+                        serviceTier = serviceTierForPrompt(),
                     ),
                 )
                 runCatching { currentBackend.session(targetSessionId).title }

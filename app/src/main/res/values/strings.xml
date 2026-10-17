@@ -461,6 +461,10 @@
     <string name="chat_thinking_level_high">High</string>
     <string name="chat_thinking_level_xhigh">Extra High</string>
     <string name="chat_thinking_level_max">Max</string>
+    <string name="chat_thinking_level_none">Off</string>
+    <string name="chat_thinking_level_minimal">Minimal</string>
+    <string name="chat_thinking_level_ultra">Ultra</string>
+    <string name="chat_fast_mode">Fast</string>
     <string name="chat_system_prompt_default">Prompt</string>
     <string name="chat_mode_build">Build</string>
     <string name="chat_mode_plan">Plan</string>
@@ -748,6 +752,8 @@
     <string name="cd_camera">Camera</string>
     <string name="cd_gallery">Gallery</string>
     <string name="cd_thinking">Thinking</string>
+    <string name="cd_fast_mode">Fast mode</string>
+    <string name="cd_fast_mode_with_description">Fast mode: %1$s</string>
     <string name="cd_system_prompt">System prompt</string>
     <string name="cd_agent_mode">Agent mode</string>
     <string name="cd_updating">Updating</string>

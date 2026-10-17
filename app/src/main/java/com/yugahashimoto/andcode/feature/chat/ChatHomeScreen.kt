@@ -41,6 +41,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -53,6 +54,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -112,6 +114,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -128,6 +131,7 @@ import androidx.core.content.ContextCompat
 import com.yugahashimoto.andcode.R
 import com.yugahashimoto.andcode.core.api.OpenCodeAgent
 import com.yugahashimoto.andcode.core.api.OpenCodeCommand
+import com.yugahashimoto.andcode.core.api.OpenCodeModel
 import com.yugahashimoto.andcode.core.api.OpenCodeProvider
 import com.yugahashimoto.andcode.core.api.OpenCodeSkill
 import com.yugahashimoto.andcode.core.api.PromptAttachment
@@ -152,6 +156,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonPrimitive
 
 /** What the long-press action sheet offers for one message: its id, its text to copy, and whether "Edit & resend" applies. */
 private data class MessageActionTarget(
@@ -178,6 +183,11 @@ fun ChatHomeScreen(
     onSelectAgent: (String) -> Unit,
     selectedVariant: String? = null,
     onSelectVariant: (String?) -> Unit = {},
+    /**
+     * Turns Codex's fast service tier on or off. The chip for it shows only while
+     * [ChatUiState.fastModeAvailable], i.e. for a Codex model that lists the tier.
+     */
+    onToggleFastMode: (Boolean) -> Unit = {},
     attachments: List<PromptAttachment> = emptyList(),
     onAttach: () -> Unit = {},
     onRemoveAttachment: (Int) -> Unit = {},
@@ -651,6 +661,10 @@ fun ChatHomeScreen(
                             ?.variants?.keys?.toList() ?: emptyList(),
                     selectedVariant = state.selectedVariant,
                     onSelectVariant = onSelectVariant,
+                    fastModeAvailable = state.fastModeAvailable,
+                    fastModeEnabled = state.fastModeEnabled,
+                    fastModeDescription = state.fastModeDescription,
+                    onToggleFastMode = onToggleFastMode,
                     attachments = state.attachments,
                     onAttach = onAttach,
                     onRemoveAttachment = onRemoveAttachment,
@@ -1241,6 +1255,10 @@ private fun ChatComposer(
     thinkingOptions: List<String>,
     selectedVariant: String?,
     onSelectVariant: (String?) -> Unit,
+    fastModeAvailable: Boolean,
+    fastModeEnabled: Boolean,
+    fastModeDescription: String?,
+    onToggleFastMode: (Boolean) -> Unit,
     attachments: List<PromptAttachment>,
     onAttach: () -> Unit,
     onRemoveAttachment: (Int) -> Unit,
@@ -1619,6 +1637,15 @@ private fun ChatComposer(
                     onSelect = onSelectVariant,
                 )
             }
+            // Right after the effort chip: both decide how the model runs the next turn, so they
+            // read as a pair. Only a Codex model with a fast tier offers it.
+            if (fastModeAvailable) {
+                FastModeChip(
+                    enabled = fastModeEnabled,
+                    description = fastModeDescription,
+                    onToggle = onToggleFastMode,
+                )
+            }
             if (systemPromptPresets.isNotEmpty()) {
                 SystemPromptChip(
                     presets = systemPromptPresets,
@@ -1723,6 +1750,66 @@ private fun ThinkingChip(
 }
 
 /**
+ * Turns Codex's fast service tier on or off for the turns that follow.
+ *
+ * A plain on/off pill in the same tokens as the thinking and auto-accept chips, so it reads as one
+ * more setting on the row rather than a new kind of control. It carries switch semantics rather
+ * than a click, so a screen reader also says whether it is on. The server's own wording for the
+ * tier ("1.5x speed, increased usage") goes to the screen reader: a phone-width row has no room
+ * for it.
+ */
+@Composable
+private fun FastModeChip(
+    enabled: Boolean,
+    description: String?,
+    onToggle: (Boolean) -> Unit,
+) {
+    val containerColor =
+        if (enabled) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        }
+    val contentColor =
+        if (enabled) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    Surface(
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(100.dp))
+                .toggleable(value = enabled, role = Role.Switch, onValueChange = onToggle)
+                .testTag("chat-fast-mode"),
+        shape = RoundedCornerShape(100.dp),
+        color = containerColor,
+        contentColor = contentColor,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                Icons.Default.Bolt,
+                contentDescription =
+                    description
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { stringResource(R.string.cd_fast_mode_with_description, it) }
+                        ?: stringResource(R.string.cd_fast_mode),
+                modifier = Modifier.size(14.dp),
+            )
+            Text(
+                stringResource(R.string.chat_fast_mode),
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+/**
  * Switches the system-prompt preset this chat sends with, without leaving it.
  *
  * Per chat, not per turn: [com.yugahashimoto.andcode.runtime.local.ClaudeCodeTarget] keeps one
@@ -1800,20 +1887,26 @@ private fun SystemPromptChip(
 /**
  * A model variant's display label for the thinking chip.
  *
- * Claude Code and Antigravity both offer reasoning-effort slugs ("low", "medium", "high", plus
- * Claude Code's own "xhigh" and "max"); those get their proper names ("Extra High", "Max") instead
- * of the raw slug, which used to make the CLI's highest level ("max") look like just another word
- * next to "xhigh" rather than the new top tier it is. Any other provider's variant id - OpenCode's
- * own models offer different ones - falls back to capitalizing the raw value, as before.
+ * Claude Code, Antigravity and Codex all offer reasoning-effort slugs ("low", "medium", "high",
+ * plus Claude Code's and Codex's "xhigh" and "max"); those get their proper names ("Extra High",
+ * "Max") instead of the raw slug, which used to make the CLI's highest level ("max") look like just
+ * another word next to "xhigh" rather than the new top tier it is. Codex adds "ultra" above "max"
+ * and "minimal" and "none" below "low"; "none" reads "Off", since the chip then names thinking
+ * that is switched off, and a bare "None" would look like no choice was made. Any other provider's
+ * variant id - OpenCode's own models offer different ones - falls back to capitalizing the raw
+ * value, as before.
  */
 @Composable
 private fun thinkingLevelLabel(level: String): String =
     when (level.lowercase()) {
+        "none" -> stringResource(R.string.chat_thinking_level_none)
+        "minimal" -> stringResource(R.string.chat_thinking_level_minimal)
         "low" -> stringResource(R.string.chat_thinking_level_low)
         "medium" -> stringResource(R.string.chat_thinking_level_medium)
         "high" -> stringResource(R.string.chat_thinking_level_high)
         "xhigh" -> stringResource(R.string.chat_thinking_level_xhigh)
         "max" -> stringResource(R.string.chat_thinking_level_max)
+        "ultra" -> stringResource(R.string.chat_thinking_level_ultra)
         else -> level.replaceFirstChar { it.uppercase() }
     }
 
@@ -2196,6 +2289,65 @@ private fun ChatHomeScreenEmptyPreview() {
             agents = emptyList(),
             selectedProviderId = null,
             selectedModelId = null,
+            selectedAgentId = null,
+            runtimeTargets = emptyList(),
+            selectedRuntimeId = null,
+            onSelectRuntime = {},
+            onSelectModel = { _, _ -> },
+            onSelectAgent = {},
+            onSelectQuestionAnswer = { _, _, _ -> },
+            onSubmitQuestion = {},
+            onSendMessage = {},
+            onPermission = { _, _, _ -> },
+            onAbort = {},
+            onMic = {},
+            onNewChat = {},
+            onOpenLocalSetup = {},
+            onOpenRemoteSetup = {},
+            onOpenDrawer = {},
+        )
+    }
+}
+
+/**
+ * A Codex model with the full effort range and its fast tier switched on, at phone width, to check
+ * that the effort and Fast chips sit side by side and the row still fits.
+ */
+@Preview(showBackground = true, widthDp = 360)
+@Composable
+private fun ChatHomeScreenCodexFastPreview() {
+    val efforts = listOf("none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra")
+    AndCodeTheme {
+        ChatHomeScreen(
+            state =
+                ChatUiState(
+                    backendName = "Codex",
+                    isConnected = true,
+                    selectedVariant = "ultra",
+                    fastModeAvailable = true,
+                    fastModeEnabled = true,
+                    fastModeDescription = "1.5x speed, increased usage",
+                ),
+            providers =
+                listOf(
+                    OpenCodeProvider(
+                        id = "openai",
+                        name = "OpenAI (Codex)",
+                        models =
+                            mapOf(
+                                "gpt-6-astra" to
+                                    OpenCodeModel(
+                                        id = "gpt-6-astra",
+                                        providerId = "openai",
+                                        name = "GPT-6-Astra",
+                                        variants = efforts.associateWith { JsonPrimitive(it) },
+                                    ),
+                            ),
+                    ),
+                ),
+            agents = emptyList(),
+            selectedProviderId = "openai",
+            selectedModelId = "gpt-6-astra",
             selectedAgentId = null,
             runtimeTargets = emptyList(),
             selectedRuntimeId = null,

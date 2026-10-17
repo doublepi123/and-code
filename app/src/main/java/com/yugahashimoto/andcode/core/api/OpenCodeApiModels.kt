@@ -137,6 +137,26 @@ data class OpenCodeModel(
     val status: String? = null,
     val limit: OpenCodeModelLimit? = null,
     val variants: Map<String, JsonElement> = emptyMap(),
+    /**
+     * Codex only: the service-tier id that means "Fast" for this model (the app-server's `priority`
+     * tier, or a legacy `fast`), or null when the model offers no fast mode. Named so no OpenCode
+     * payload carries the key; left serialized so the disk catalogue cache keeps it.
+     */
+    val codexFastServiceTier: String? = null,
+    /** Codex only: the server's description of the fast tier, shown beside the fast-mode toggle. */
+    val codexFastDescription: String? = null,
+    /** Codex only: true when the server defaults this model to the fast tier. */
+    val codexFastByDefault: Boolean = false,
+    /**
+     * Codex only: the model's `defaultReasoningEffort`. Sent explicitly on every turn, because the
+     * app-server applies `effort` to subsequent turns too and omitting it would inherit the previous one.
+     */
+    val codexDefaultEffort: String? = null,
+    /**
+     * Codex only: the model's `defaultServiceTier`, or null for standard speed. Sent explicitly on
+     * every turn for the same reason as [codexDefaultEffort].
+     */
+    val codexDefaultServiceTier: String? = null,
 )
 
 @Serializable
@@ -295,6 +315,11 @@ data class PromptRequest(
     val variant: String? = null,
     val attachments: List<PromptAttachment> = emptyList(),
     val noReply: Boolean = false,
+    /**
+     * Codex only: the service tier for this turn. Null leaves the choice to Codex; `"default"`
+     * forces standard speed. Built field by field for OpenCode, so it is never sent to that server.
+     */
+    val serviceTier: String? = null,
 )
 
 @Serializable

@@ -1,6 +1,8 @@
 package com.yugahashimoto.andcode.di
 
 import com.yugahashimoto.andcode.AndCodeApplication
+import com.yugahashimoto.andcode.data.connection.SecureSettingsRepository
+import com.yugahashimoto.andcode.data.settings.AppPreferencesRepository
 import com.yugahashimoto.andcode.feature.activity.ActivityViewModel
 import com.yugahashimoto.andcode.feature.chat.ChatViewModel
 import com.yugahashimoto.andcode.feature.settings.SettingsViewModel
@@ -17,9 +19,14 @@ val viewModelModule =
 
         viewModel {
             val app = androidContext().applicationContext as AndCodeApplication
+            val preferences: AppPreferencesRepository = get()
+            val settings: SecureSettingsRepository = get()
             ChatViewModel(
                 draftRepo = get(),
                 pullRequestStatuses = get(),
+                // Same Codex fast-mode wiring as the factory in ui/AndCodeApp.kt; keep the two in step.
+                onCodexFastModeChanged = preferences::setCodexFastMode,
+                initialCodexFastMode = settings.codexFastMode,
                 // Kept in step with the hand-rolled factory in ui/AndCodeApp.kt: both construction
                 // paths have to park the connection probe and stall watchdog while the app is
                 // backgrounded, or whichever one the screen happens to use decides whether those

@@ -471,6 +471,10 @@
     <string name="chat_thinking_level_high">高</string>
     <string name="chat_thinking_level_xhigh">超高</string>
     <string name="chat_thinking_level_max">最高</string>
+    <string name="chat_thinking_level_none">关闭</string>
+    <string name="chat_thinking_level_minimal">极低</string>
+    <string name="chat_thinking_level_ultra">极致</string>
+    <string name="chat_fast_mode">快速</string>
     <string name="chat_system_prompt_default">提示词</string>
     <string name="chat_mode_build">构建</string>
     <string name="chat_mode_plan">计划</string>
@@ -744,6 +748,8 @@
     <string name="cd_camera">Camera</string>
     <string name="cd_gallery">Gallery</string>
     <string name="cd_thinking">Thinking</string>
+    <string name="cd_fast_mode">快速模式</string>
+    <string name="cd_fast_mode_with_description">快速模式：%1$s</string>
     <string name="cd_system_prompt">系统提示词</string>
     <string name="cd_agent_mode">Agent mode</string>
     <string name="cd_updating">Updating</string>

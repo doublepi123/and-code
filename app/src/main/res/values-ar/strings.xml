@@ -481,6 +481,10 @@
     <string name="chat_thinking_level_high">مرتفع</string>
     <string name="chat_thinking_level_xhigh">مرتفع جدًا</string>
     <string name="chat_thinking_level_max">الحد الأقصى</string>
+    <string name="chat_thinking_level_none">إيقاف</string>
+    <string name="chat_thinking_level_minimal">الحد الأدنى</string>
+    <string name="chat_thinking_level_ultra">فائق</string>
+    <string name="chat_fast_mode">سريع</string>
     <string name="chat_system_prompt_default">الموجّه</string>
     <string name="chat_mode_build">بناء</string>
     <string name="chat_mode_plan">تخطيط</string>
@@ -759,6 +763,8 @@
     <string name="cd_camera">Camera</string>
     <string name="cd_gallery">Gallery</string>
     <string name="cd_thinking">Thinking</string>
+    <string name="cd_fast_mode">الوضع السريع</string>
+    <string name="cd_fast_mode_with_description">الوضع السريع: %1$s</string>
     <string name="cd_system_prompt">موجّه النظام</string>
     <string name="cd_agent_mode">Agent mode</string>
     <string name="cd_updating">Updating</string>
