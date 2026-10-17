@@ -283,6 +283,25 @@ internal fun findManagedRuntimeRootPids(
         .toList()
 }
 
+/**
+ * The subset of [findManagedRuntimeRootPids] that is the OpenCode server this launcher starts
+ * (`/usr/local/bin/opencode serve`), not another agent's or a terminal's proot in the same runtime.
+ */
+internal fun findOpenCodeServerPids(
+    runtimeDirectory: File,
+    procRoot: File = File("/proc"),
+): List<Long> =
+    findManagedRuntimeRootPids(runtimeDirectory, procRoot).filter { pid ->
+        val arguments =
+            runCatching {
+                File(File(procRoot, pid.toString()), "cmdline").readBytes().toString(Charsets.UTF_8).split('\u0000')
+            }.getOrDefault(emptyList())
+        val binary = arguments.indexOf(OPEN_CODE_SERVER_BINARY)
+        binary >= 0 && arguments.getOrNull(binary + 1) == "serve"
+    }
+
+private const val OPEN_CODE_SERVER_BINARY = "/usr/local/bin/opencode"
+
 internal fun processId(process: Process): Long? {
     val methodValue =
         runCatching {

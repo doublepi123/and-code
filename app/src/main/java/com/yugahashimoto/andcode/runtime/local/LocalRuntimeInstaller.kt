@@ -241,9 +241,10 @@ class LocalRuntimeInstaller(
         }
 
     /**
-     * Whether an activation was interrupted and left a rollback copy of the environment behind, the
-     * only state [recoverInterruptedActivation] can repair. A plain file-existence check, so it is
-     * cheap enough for the foreground-return path; it takes no lock and reads nothing else.
+     * Whether an install or update was interrupted and left state that the start path repairs: a
+     * rollback copy of the environment (fixed by [recoverInterruptedActivation]) or an in-app update
+     * journal (fixed by the update engine's recover step in the manager's start). A plain
+     * file-existence check, so it is cheap enough for the foreground-return path; it takes no lock.
      */
     fun hasInterruptedActivation(): Boolean =
         File(runtimeDirectory, "environment.rollback").isDirectory ||

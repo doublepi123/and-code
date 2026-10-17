@@ -634,8 +634,10 @@ class LocalRuntimeService : Service() {
             if (!idleStopGate.isCurrent(token)) {
                 // A newer command ran; it set its own auto-restart value, which must not be
                 // overwritten. The in-progress flag is cleared here too, so a superseded stop never
-                // leaves it stuck.
+                // leaves it stuck. The idle timer restarts as on a decline, so a runtime that is still
+                // idle afterwards is not stopped again on the very next tick.
                 app.setIdleStopInProgress(false)
+                synchronized(idleTrackerLock) { idleTracker.reset() }
                 startWatchdog()
             } else if (declined) {
                 // Declined because the runtime became busy or was foregrounded: keep it up and the

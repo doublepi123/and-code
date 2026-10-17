@@ -52,8 +52,11 @@ class LocalRuntimeManager(
     private val portProbe: (Int) -> Boolean = ::defaultPortProbe,
     /** Whether the server answering on a port is ours; see [defaultServerOwnershipProbe]. */
     private val ownershipProbe: (Int, String) -> Boolean = ::defaultServerOwnershipProbe,
-    /** Whether a proot process started from this runtime directory is alive, by scanning /proc. */
-    private val managedRuntimeRunning: () -> Boolean = { findManagedRuntimeRootPids(runtimeDirectory).isNotEmpty() },
+    /**
+     * Whether our own OpenCode server proot is alive, by scanning /proc. Only the server counts:
+     * Claude Code, Codex and terminal sessions run proot from the same runtime directory too.
+     */
+    private val managedRuntimeRunning: () -> Boolean = { findOpenCodeServerPids(runtimeDirectory).isNotEmpty() },
     private val installer: LocalRuntimeInstaller? = null,
     private val processLauncher: LocalRuntimeProcessLauncher? = null,
     /** Whether the server process we started is still alive, independent of whether it answers. */
