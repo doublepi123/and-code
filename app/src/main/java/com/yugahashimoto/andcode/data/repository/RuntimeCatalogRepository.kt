@@ -41,6 +41,12 @@ data class RuntimeCatalogState(
     val error: String? = null,
     /** The line of [error] that is about agents, so a later successful agent read can drop it. */
     val agentsError: String? = null,
+    /**
+     * True while the agent list is being read and none is on screen yet: a local OpenCode installing
+     * its plugins can take tens of seconds on its first `GET /agent`, and the mode chip shows this
+     * instead of looking dead.
+     */
+    val agentsLoading: Boolean = false,
 )
 
 class RuntimeCatalogRepository(
@@ -176,9 +182,14 @@ class RuntimeCatalogRepository(
                 // as the fetch took — seconds, while a stopped runtime is retried — and OpenCode
                 // models appeared under Claude Code.
                 if (current.runtime?.id != target.id) {
-                    RuntimeCatalogState(runtime = target, isRefreshing = true)
+                    RuntimeCatalogState(runtime = target, isRefreshing = true, agentsLoading = true)
                 } else {
-                    current.copy(runtime = target, isRefreshing = true, error = null)
+                    current.copy(
+                        runtime = target,
+                        isRefreshing = true,
+                        error = null,
+                        agentsLoading = !current.agents.hasSelectableAgent(),
+                    )
                 }
             }
 
@@ -249,13 +260,16 @@ class RuntimeCatalogRepository(
             // Like the providers above: a read that failed or offered no agent to pick must not blank
             // a list this runtime already showed, or a flaky `GET /agent` empties a working picker.
             val loadedAgents = catalog.agents.getOrNull()
-            val agentsToUse =
-                if (loadedAgents.hasSelectableAgent()) {
-                    loadedAgents.orEmpty()
-                } else {
-                    mutableState.value.agentsFor(target).ifEmpty { loadedAgents.orEmpty() }
-                }
-            mutableState.value =
+            // Read and written in one update: a background agent retry can land between this load's
+            // fetch and its write, and taking the list from before that would put an empty one back.
+            mutableState.update { current ->
+                val agentsToUse =
+                    if (loadedAgents.hasSelectableAgent()) {
+                        loadedAgents.orEmpty()
+                    } else {
+                        current.agentsFor(target).ifEmpty { loadedAgents.orEmpty() }
+                    }
+                val agentsFound = agentsToUse.hasSelectableAgent()
                 RuntimeCatalogState(
                     runtime = target,
                     health = connection.getOrNull(),
@@ -265,8 +279,12 @@ class RuntimeCatalogRepository(
                     workspaces = catalog.workspaces.getOrDefault(emptyList()),
                     isRefreshing = false,
                     error = errors.takeIf { it.isNotEmpty() }?.joinToString("\n"),
-                    agentsError = catalog.agentsFailure(messages),
+                    // A list kept from a retry that already succeeded carries no failure of its own.
+                    agentsError = catalog.agentsFailure(messages).takeUnless { agentsFound && !loadedAgents.hasSelectableAgent() },
+                    // Still loading when nothing selectable came back: the retry below takes over.
+                    agentsLoading = !agentsFound,
                 )
+            }
         }
         // Outside the lock: a local OpenCode installing its plugins can take tens of seconds per
         // `GET /agent`, and the rest of the catalogue - and every other refresh - must not wait on it.
@@ -305,7 +323,12 @@ class RuntimeCatalogRepository(
         if (current.runtime?.id == target.id && current.health == null) {
             // Not connected yet. A load still in flight will retry the agents itself once it
             // connects; a load that gave up gets a full refresh, not a poll of a dead server.
-            if (!current.isRefreshing) refresh()
+            if (!current.isRefreshing) {
+                // Disables the "tap to retry" item straight away, so repeated taps cannot queue one
+                // full reconnect each behind the refresh lock before the load gets to run.
+                mutableState.update { if (it.runtime?.id == target.id) it.copy(agentsLoading = true) else it }
+                refresh()
+            }
             return
         }
         synchronized(agentRetryLock) {
@@ -316,12 +339,21 @@ class RuntimeCatalogRepository(
                 if (running.first == target.id) return
                 running.second.cancel()
             }
+            mutableState.update {
+                if (it.runtime?.id == target.id && !it.agents.hasSelectableAgent()) it.copy(agentsLoading = true) else it
+            }
             agentRetry =
                 target.id to
                 scope.launch {
-                    val list = loadAgents(target).getOrNull()?.takeIf { it.hasSelectableAgent() } ?: return@launch
+                    val list = loadAgents(target).getOrNull()?.takeIf { it.hasSelectableAgent() }
                     if (registry.selected.value?.id != target.id) return@launch
-                    mutableState.update { if (it.runtime?.id == target.id) it.withAgents(list) else it }
+                    mutableState.update {
+                        when {
+                            it.runtime?.id != target.id -> it
+                            list != null -> it.withAgents(list)
+                            else -> it.copy(agentsLoading = false)
+                        }
+                    }
                 }
         }
     }
@@ -399,5 +431,5 @@ private fun List<OpenCodeAgent>?.hasSelectableAgent(): Boolean = this?.selectabl
 private fun RuntimeCatalogState.withAgents(agents: List<OpenCodeAgent>): RuntimeCatalogState {
     val remaining =
         error?.lineSequence()?.filterNot { it == agentsError }?.joinToString("\n")?.takeIf { it.isNotBlank() }
-    return copy(agents = agents, error = remaining, agentsError = null)
+    return copy(agents = agents, error = remaining, agentsError = null, agentsLoading = false)
 }
