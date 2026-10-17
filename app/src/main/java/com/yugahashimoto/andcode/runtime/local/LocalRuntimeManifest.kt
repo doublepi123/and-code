@@ -54,6 +54,9 @@ class LocalRuntimeManifestReader(
             isLenient = true
         },
 ) {
+    /** The local server port this build uses; see [LocalRuntimeManifest.port]. */
+    fun port(): Int = read().port
+
     fun read(): LocalRuntimeManifest {
         val payload = context.assets.open(ASSET_NAME).bufferedReader().use { it.readText() }
         return json.decodeFromString<LocalRuntimeManifest>(payload).also { it.validate() }

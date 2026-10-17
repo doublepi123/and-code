@@ -1203,4 +1203,6 @@
     <string name="full_development_tools_installed">Todas as ferramentas de desenvolvimento estão instaladas</string>
     <string name="install_full_development_tools_button">Instalar cadeia completa</string>
     <string name="runtime_full_development_tools_start_failed">Não foi possível iniciar a instalação das ferramentas</string>
+    <string name="runtime_stopped_manually_title">Parado manualmente</string>
+    <string name="runtime_stopped_manually_hint">O OpenCode não iniciará automaticamente até você iniciá-lo.</string>
 </resources>

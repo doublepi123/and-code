@@ -144,6 +144,48 @@ class RuntimeAutoStartPolicyTest {
         )
     }
 
+    /**
+     * An interrupted activation leaves the runtime reading as Broken from disk, and recovery lives
+     * in the start path - so a return has to be allowed to attempt the start in that case.
+     */
+    @Test
+    fun `restores a broken runtime left by an interrupted activation`() {
+        assertTrue(
+            shouldRestoreOnForegroundReturn(
+                status = LocalRuntimeStatus.Broken("Runtime metadata is invalid"),
+                idleStopInProgress = false,
+                userStoppedRuntime = false,
+                interruptedActivationPending = true,
+            ),
+        )
+    }
+
+    /** A Broken runtime with no interrupted activation is not something a restart can repair. */
+    @Test
+    fun `leaves a broken runtime alone when no activation was interrupted`() {
+        assertFalse(
+            shouldRestoreOnForegroundReturn(
+                status = LocalRuntimeStatus.Broken("Runtime environment is missing files"),
+                idleStopInProgress = false,
+                userStoppedRuntime = false,
+                interruptedActivationPending = false,
+            ),
+        )
+    }
+
+    /** A deliberate stop wins even over a pending interrupted-activation recovery. */
+    @Test
+    fun `does not restore a user-stopped runtime even when an activation was interrupted`() {
+        assertFalse(
+            shouldRestoreOnForegroundReturn(
+                status = LocalRuntimeStatus.Broken("Runtime environment is missing files"),
+                idleStopInProgress = false,
+                userStoppedRuntime = true,
+                interruptedActivationPending = true,
+            ),
+        )
+    }
+
     @Test
     fun `leaves a healthy runtime alone on a foreground return`() {
         assertFalse(

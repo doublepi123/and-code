@@ -309,6 +309,9 @@ class LocalRuntimeService : Service() {
      */
     private val idleTracker = IdleStopTracker()
 
+    /** Orders idle-stop decisions against incoming commands; see [IdleStopGate]. */
+    private val idleStopGate = IdleStopGate()
+
     override fun onCreate() {
         super.onCreate()
         app = application as AndCodeApplication
@@ -362,6 +365,10 @@ class LocalRuntimeService : Service() {
         startId: Int,
     ): Int {
         val command = localRuntimeServiceCommand(intent?.action)
+        // A real command supersedes an idle stop decided earlier; see [IdleStopGate]. Recorded before
+        // anything else so an idle stop that completes from here on cannot tear the service down.
+        // Ignore is excluded: it changes nothing, so it must not leave the service up with no owner.
+        if (command != LocalRuntimeServiceCommand.Ignore) idleStopGate.onCommand()
         // An explicit start always means "the user (or something acting for them) wants this
         // running" - without clearing the flag here, a deliberate restart from the workspace screen
         // would still read as "leave it down" the very next time the app comes to the foreground.
@@ -521,7 +528,7 @@ class LocalRuntimeService : Service() {
         hasActiveWork: Boolean,
     ): Boolean {
         val appInForeground = appForeground.foreground.value
-        val adbConnected = app.adbConnectionManager.state.value is AdbConnectionState.Connected
+        val adbConnected = adbConnected()
         val idleNow = status is LocalRuntimeStatus.Ready && !hasActiveWork && !appInForeground && !adbConnected
         val idleForMillis = idleTracker.update(idleNow)
 
@@ -529,31 +536,79 @@ class LocalRuntimeService : Service() {
         if (!shouldStopIdleRuntime(status, hasActiveWork, appInForeground, adbConnected, idleForMillis, IDLE_STOP_TIMEOUT_MILLIS)) {
             return false
         }
+        val token = idleStopGate.beginIdleStop() ?: return false
+        val previousAutoRestart = autoRestartEnabled
+        // Set by the stop step when it was declined because the runtime became busy or came back to
+        // the foreground while the idle stop waited for the manager lock.
+        var declined = false
+        // Set synchronously, before the coroutine below exists. The in-progress flag is what
+        // shouldRestoreOnForegroundReturn reads: setting it only inside the coroutine left a window
+        // where a foreground return saw Ready and not-in-progress, skipped the restore, and then the
+        // stop ran with nothing left to bring the runtime back. autoRestartEnabled is cleared for the
+        // same reason, so the watchdog cannot restart the runtime being stopped.
         autoRestartEnabled = false
+        app.setIdleStopInProgress(true)
         // Deliberately not launchOperation: this is the watchdog's own decision, not a user or
-        // notification action, so it must not cancel anything already tracked in `operation`. The
-        // set/clear pair for setIdleStopInProgress is extracted into runIdleStopSequence precisely so
-        // both live inside one coroutine body rather than straddling this launch call: if onDestroy
-        // (and therefore scope.cancel()) lands between scheduling this coroutine and it actually
-        // starting, the body - set included - simply never runs, rather than setting the flag and
-        // then never reaching the finally that clears it. A stuck `true` would make
-        // shouldRestoreOnForegroundReturn treat every later foreground entry as needing a restore,
-        // sending ACTION_START at a healthy Ready runtime and cancelling whatever operation it finds
-        // in flight. onDestroy also clears the flag directly as a belt-and-braces guard for any
-        // window this reasoning misses.
+        // notification action, so it must not cancel anything already tracked in `operation`.
+        // onDestroy clears the flag as well, so a scope cancelled before this coroutine starts
+        // cannot leave it stuck at true.
         scope.launch(Dispatchers.IO) {
             runtimeWork.withLease(RUNTIME_OPERATION_LEASE_TAG) {
                 runIdleStopSequence(
                     markInProgress = app::setIdleStopInProgress,
-                    stop = manager::stop,
-                    onStopped = {
-                        stopForeground(STOP_FOREGROUND_REMOVE)
-                        stopSelf()
+                    stop = {
+                        // Checked inside the manager's lock: this can queue behind a newer start,
+                        // and that start must win rather than be stopped right after it finishes.
+                        val stopped = manager.stopIfStillWanted { stillIdleAt(token) }
+                        if (!stopped) declined = true
                     },
+                    onStopped = { finishIdleStop(token, previousAutoRestart, declined) },
                 )
             }
         }
         return true
+    }
+
+    /** Whether the idle stop decided at [token] still applies. Evaluated under the manager lock. */
+    private fun stillIdleAt(token: Long): Boolean =
+        idleStopGate.isCurrent(token) &&
+            shouldStopIdleRuntime(
+                status = manager.status(),
+                hasActiveWork = runtimeWork.active.value,
+                appInForeground = appForeground.foreground.value,
+                adbConnected = adbConnected(),
+                idleForMillis = IDLE_STOP_TIMEOUT_MILLIS,
+                timeoutMillis = IDLE_STOP_TIMEOUT_MILLIS,
+            )
+
+    private fun adbConnected(): Boolean = app.adbConnectionManager.state.value is AdbConnectionState.Connected
+
+    /**
+     * Runs once the idle stop has finished, whether or not it stopped the runtime. Tears the service
+     * down only when no newer command arrived in the meantime. Otherwise that command owns the
+     * service: it stays up, and the watchdog is restarted for it.
+     */
+    private fun finishIdleStop(
+        token: Long,
+        previousAutoRestart: Boolean,
+        declined: Boolean,
+    ) {
+        idleStopGate.finishIdleStop(token)
+        if (!idleStopGate.isCurrent(token)) {
+            // A newer command ran; it set its own auto-restart value, which must not be overwritten.
+            // The in-progress flag is cleared here too: a superseded stop must not leave it stuck.
+            app.setIdleStopInProgress(false)
+            startWatchdog()
+        } else if (declined) {
+            // Declined because the runtime became busy or was foregrounded: keep it up and the
+            // watchdog running, handing the auto-restart flag back.
+            autoRestartEnabled = previousAutoRestart
+            app.setIdleStopInProgress(false)
+            startWatchdog()
+        } else {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
 
     /**

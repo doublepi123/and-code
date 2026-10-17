@@ -1373,7 +1373,7 @@ private fun AndroidSetupScreenPreview() {
 private fun AndroidSetupProviderStepPreview() {
     AndCodeTheme {
         AndroidSetupScreen(
-            runtimeStatus = LocalRuntimeStatus.Ready("1.0.0", 4097),
+            runtimeStatus = LocalRuntimeStatus.Ready("1.0.0", 4098),
             claude = ClaudeCodeUiState(installed = true, version = "2.1.212"),
             onStartSetup = { _, _ -> },
             onBeginClaudeSignIn = {},

@@ -1212,4 +1212,6 @@
     <string name="full_development_tools_installed">تم تثبيت أدوات التطوير الكاملة</string>
     <string name="install_full_development_tools_button">تثبيت مجموعة الأدوات الكاملة</string>
     <string name="runtime_full_development_tools_start_failed">تعذر بدء تثبيت أدوات التطوير</string>
+    <string name="runtime_stopped_manually_title">تم الإيقاف يدويًا</string>
+    <string name="runtime_stopped_manually_hint">لن يبدأ OpenCode تلقائيًا حتى تشغّله يدويًا.</string>
 </resources>

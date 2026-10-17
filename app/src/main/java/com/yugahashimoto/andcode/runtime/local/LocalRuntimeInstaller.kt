@@ -240,6 +240,13 @@ class LocalRuntimeInstaller(
             }
         }
 
+    /**
+     * Whether an activation was interrupted and left a rollback copy of the environment behind, the
+     * only state [recoverInterruptedActivation] can repair. A plain file-existence check, so it is
+     * cheap enough for the foreground-return path; it takes no lock and reads nothing else.
+     */
+    fun hasInterruptedActivation(): Boolean = File(runtimeDirectory, "environment.rollback").isDirectory
+
     fun recoverInterruptedActivation(): Boolean =
         accessCoordinator.write {
             recoverInterruptedRuntimeEnvironment(
@@ -259,6 +266,7 @@ class LocalRuntimeInstaller(
         accessCoordinator.write {
             val active = File(runtimeDirectory, "environment")
             normalizeRuntimeSymlinks(active)
+            migrateLegacyRuntimePort(runtimeDirectory, manifestReader::port, json)
             val metadataFile = File(runtimeDirectory, METADATA_FILE)
             val rootfs = File(active, "rootfs")
             if (!metadataFile.isFile || !rootfs.isDirectory) return@write null

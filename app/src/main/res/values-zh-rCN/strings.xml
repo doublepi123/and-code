@@ -1197,4 +1197,6 @@
     <string name="full_development_tools_installed">完整开发工具已安装</string>
     <string name="install_full_development_tools_button">安装完整工具链</string>
     <string name="runtime_full_development_tools_start_failed">无法开始安装开发工具</string>
+    <string name="runtime_stopped_manually_title">已手动停止</string>
+    <string name="runtime_stopped_manually_hint">在你手动启动前，OpenCode 不会自动启动。</string>
 </resources>

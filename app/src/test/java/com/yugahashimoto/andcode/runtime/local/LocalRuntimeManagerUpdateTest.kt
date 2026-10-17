@@ -68,6 +68,7 @@ class LocalRuntimeManagerUpdateTest {
                     runtimeDirectory = runtime,
                     abi = "arm64-v8a",
                     portProbe = { true },
+                    ownershipProbe = { _, _ -> true },
                     updateEngine = engine,
                     runtimeOperations = operations,
                 )

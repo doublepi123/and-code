@@ -1206,4 +1206,6 @@
     <string name="full_development_tools_installed">Полный набор инструментов установлен</string>
     <string name="install_full_development_tools_button">Установить полный набор</string>
     <string name="runtime_full_development_tools_start_failed">Не удалось начать установку инструментов разработки</string>
+    <string name="runtime_stopped_manually_title">Остановлен вручную</string>
+    <string name="runtime_stopped_manually_hint">OpenCode не будет запускаться автоматически, пока вы не запустите его вручную.</string>
 </resources>

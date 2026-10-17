@@ -1221,4 +1221,6 @@
     <string name="full_development_tools_installed">Complete development tools are installed</string>
     <string name="install_full_development_tools_button">Install complete toolchain</string>
     <string name="runtime_full_development_tools_start_failed">Could not start development tool installation</string>
+    <string name="runtime_stopped_manually_title">Stopped manually</string>
+    <string name="runtime_stopped_manually_hint">OpenCode won\'t start automatically until you start it.</string>
 </resources>

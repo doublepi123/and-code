@@ -10,7 +10,7 @@
   [`app/src/main/assets/local-runtime-manifest.json`](../app/src/main/assets/local-runtime-manifest.json)
   内の`openCodeUrl`、`sha256`で固定されています。
 - **インストール場所:** SHA-256検証後、`LocalRuntimeInstaller`／`LocalOpenCodeBackend`により、アプリ専用の端末内Alpine rootfsへ展開されます。
-- **起動方法:** Alpine PRootサンドボックス内で`127.0.0.1:4097`にバインドされたローカルHTTPサーバーとして起動します（`LocalOpenCodeBackend`）。AndCodeは他のOpenCodeクライアントと同様に`OpenCodeApiClient`経由で通信します。**リモートOpenCode**の場合、AndCodeは代わりに、利用者が既に自身のPC／Mac／Linuxで実行しているOpenCodeサーバーへ、入力されたURL／ユーザー名／パスワードを用いて接続します（`RemoteOpenCodeBackend`）。
+- **起動方法:** Alpine PRootサンドボックス内で`127.0.0.1:4098`にバインドされたローカルHTTPサーバーとして起動します（`LocalOpenCodeBackend`）。AndCodeは他のOpenCodeクライアントと同様に`OpenCodeApiClient`経由で通信します。**リモートOpenCode**の場合、AndCodeは代わりに、利用者が既に自身のPC／Mac／Linuxで実行しているOpenCodeサーバーへ、入力されたURL／ユーザー名／パスワードを用いて接続します（`RemoteOpenCodeBackend`）。
 - **認証方法:** OpenCode自身のプロバイダー認証（例：AnthropicやOpenAIのAPIキー、あるいはプロバイダー自身のOAuthフロー）は、OpenCodeサーバー自身が処理します。AndCodeの`ProviderAuthDialog`／`SettingsViewModel`は、OpenCode APIの`providerAuthMethods`／`authorizeProvider`／`completeProviderOAuth`エンドポイントを呼び出し、サーバーが返す方式・URL・入力項目をそのまま表示します。資格情報のやり取り自体は、OpenCodeプロセスとプロバイダーの間で行われ、AndCodeの内部では行われません。
 - **認証URL／コードの扱い:** プロバイダーの認証方式がブラウザURLを開くものである場合、AndCodeはAndroidの`Intent.ACTION_VIEW`でそれを開き、入力されたコードをOpenCode APIへ送り返します。完全な認証URLは永続的なログへ書き込まれません（ログに記録する前に、`SecretRedaction.redactUrlQuery`によりクエリ文字列が除去されます）。
 - **OAuth／APIキーの保存主体 — 単一ではなく3つの異なる経路:**

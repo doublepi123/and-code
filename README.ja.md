@@ -192,7 +192,7 @@ npx qrcode "opencode://connect?name=Mac%20mini&url=http%3A%2F%2F192.168.1.10%3A4
 4. 両方のSHA-256チェックサムを検証
 5. アプリ専用ディレクトリに展開
 6. Alpine内にGit、bash、curl、ripgrep、CA証明書をインストール
-7. `127.0.0.1:4097`でエージェントサーバーを起動
+7. `127.0.0.1:4098`でエージェントサーバーを起動
 8. アプリをローカルランタイムに切り替え
 
 固定バージョン（エージェント自体を変更せずアプリのリリースで更新可能。詳細は[`local-runtime-manifest.json`](app/src/main/assets/local-runtime-manifest.json)を参照）:
