@@ -1,11 +1,20 @@
 package com.yugahashimoto.andcode.runtime.local
 
 import java.io.File
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.util.concurrent.TimeUnit
 
 class LocalRuntimeProcessLauncher(
     private val runtimeDirectory: File,
     private val portProbe: (Int) -> Boolean,
+    /**
+     * Whether a just-started server answers HTTP on the port; startup waits for this, not for
+     * [portProbe]. `opencode serve` accepts connections a few hundred milliseconds before it can
+     * serve them, and a request sent on a connection accepted in that window is never answered, so
+     * an open port is not yet a ready server. See [defaultServerAnswersHttp].
+     */
+    private val serverReady: (Int) -> Boolean = ::defaultServerAnswersHttp,
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val procRoot: File = File("/proc"),
     private val processSignal: (Long) -> Unit = { pid ->
@@ -202,13 +211,19 @@ class LocalRuntimeProcessLauncher(
         logFile: File,
     ) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
+        // Each attempt can take up to ~2 s (connect + read), so the last one may end slightly after
+        // the deadline.
         while (System.nanoTime() < deadline) {
             if (!process.isAlive) {
                 error("Local OpenCode exited during startup: ${tail(logFile)}")
             }
-            if (portProbe(port)) return
+            if (serverReady(port)) return
             Thread.sleep(250)
         }
+        // A loaded device can be slow to answer HTTP even once the server is up. Stopping a live,
+        // listening server here would turn that into a failed start, so it keeps the old,
+        // connect-only verdict as the last word; the protocol probe's own timeout covers the rest.
+        if (process.isAlive && portProbe(port)) return
         process.destroyForcibly()
         process.waitFor(2, TimeUnit.SECONDS)
         runCatching { process.outputStream.close() }
@@ -378,3 +393,42 @@ internal fun localRuntimeEnvironment(
 private const val AND_CODE_OPENCODE_CONFIG_CONTENT =
     "{\"instructions\":[\"/root/.config/opencode/and-code-context.md\"," +
         "\"/root/.config/opencode/and-code-system-prompt.md\"]}"
+
+/**
+ * Whether the server on [port] answers an HTTP request, judged by any status line coming back.
+ *
+ * `opencode serve` (seen on 1.18.5 and 1.19.3) accepts TCP connections a few hundred milliseconds
+ * before it prints "listening", and a request sent on a connection accepted in that window is never
+ * answered - not even after minutes - while the same request on a connection opened moments later
+ * is served in milliseconds. A plain connect therefore declared the server ready too early, and the
+ * app's first request (the protocol probe) hung until its 120 s read timeout on many cold starts.
+ *
+ * Any status line counts, 401 included: authentication is not the question here. The request is
+ * sent on its own short-lived connection with a short read timeout, so a connection lost to that
+ * startup window costs one attempt and the next attempt uses a fresh one.
+ */
+internal fun defaultServerAnswersHttp(port: Int): Boolean =
+    runCatching {
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(LOOPBACK, port), READINESS_CONNECT_TIMEOUT_MILLIS)
+            socket.soTimeout = READINESS_READ_TIMEOUT_MILLIS
+            socket.getOutputStream().apply {
+                write("GET /global/health HTTP/1.1\r\nHost: $LOOPBACK\r\nConnection: close\r\n\r\n".toByteArray())
+                flush()
+            }
+            val head = ByteArray(HTTP_STATUS_PREFIX.length)
+            var read = 0
+            val input = socket.getInputStream()
+            while (read < head.size) {
+                val n = input.read(head, read, head.size - read)
+                if (n < 0) break
+                read += n
+            }
+            read == head.size && String(head, Charsets.US_ASCII) == HTTP_STATUS_PREFIX
+        }
+    }.getOrDefault(false)
+
+private const val LOOPBACK = "127.0.0.1"
+private const val HTTP_STATUS_PREFIX = "HTTP/1."
+private const val READINESS_CONNECT_TIMEOUT_MILLIS = 1_000
+private const val READINESS_READ_TIMEOUT_MILLIS = 1_000

@@ -8,6 +8,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.net.Socket
 
 class LocalRuntimeProcessLauncherTest {
     @get:Rule
@@ -522,5 +525,43 @@ class LocalRuntimeProcessLauncherTest {
             "Truncated log retains recent lines: '$remaining'",
             remaining.contains("19$line") || remaining.contains("18$line"),
         )
+    }
+
+    @Test
+    fun `an accepting port that never answers is not a ready server`() {
+        // What `opencode serve` does for the first few hundred milliseconds: the kernel accepts the
+        // connection, but nothing ever reads the request or replies.
+        ServerSocket(0, 1, InetAddress.getLoopbackAddress()).use { listener ->
+            val accepted = java.util.concurrent.CopyOnWriteArrayList<Socket>()
+            val acceptor = Thread { runCatching { while (true) accepted += listener.accept() } }.apply { isDaemon = true }
+            acceptor.start()
+
+            val started = System.nanoTime()
+            assertFalse(defaultServerAnswersHttp(listener.localPort))
+            assertTrue("readiness check must give up quickly", System.nanoTime() - started < 5_000_000_000L)
+            accepted.forEach(Socket::close)
+        }
+    }
+
+    @Test
+    fun `any HTTP status line counts as ready, including 401`() {
+        ServerSocket(0, 1, InetAddress.getLoopbackAddress()).use { listener ->
+            Thread {
+                runCatching {
+                    listener.accept().use { client ->
+                        client.getInputStream().read(ByteArray(512))
+                        client.getOutputStream().write("HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n".toByteArray())
+                    }
+                }
+            }.apply { isDaemon = true }.start()
+
+            assertTrue(defaultServerAnswersHttp(listener.localPort))
+        }
+    }
+
+    @Test
+    fun `a closed port is not ready`() {
+        val port = ServerSocket(0, 1, InetAddress.getLoopbackAddress()).use { it.localPort }
+        assertFalse(defaultServerAnswersHttp(port))
     }
 }

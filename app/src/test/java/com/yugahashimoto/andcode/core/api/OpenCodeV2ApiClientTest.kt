@@ -20,6 +20,7 @@ import okhttp3.Credentials
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -84,6 +85,25 @@ class OpenCodeV2ApiClientTest {
             val request = server.takeRequest()
             assertEquals("/api/info", request.path)
             assertEquals(Credentials.basic("opencode", "secret"), request.getHeader("Authorization"))
+        }
+
+    @Test
+    fun `a probe that gets no answer is retried well before the shared read timeout`() =
+        runBlocking {
+            // The first api/info sits on a connection that never answers, as seen on a phone right
+            // after its local server started. The retry on a fresh call gets the real answer.
+            server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+            server.enqueue(json(V2_INFO))
+            val detector = ProtocolDetectingOpenCodeApi(profile())
+
+            val started = System.nanoTime()
+            val health = detector.health()
+            val elapsedSeconds = (System.nanoTime() - started) / 1_000_000_000.0
+
+            assertEquals("2.0.28", health.version)
+            assertEquals(OpenCodeProtocol.V2, detector.protocol)
+            assertTrue("probe took ${elapsedSeconds}s", elapsedSeconds < 15.0)
+            assertEquals(2, server.requestCount)
         }
 
     @Test
