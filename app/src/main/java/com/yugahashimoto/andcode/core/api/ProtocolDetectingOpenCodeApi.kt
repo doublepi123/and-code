@@ -23,6 +23,8 @@ import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
+import java.io.InterruptedIOException
+import java.util.concurrent.TimeUnit
 
 /** Which HTTP API a server speaks. V2 servers answer under the `api/` prefix; V1 servers answer the legacy routes. */
 enum class OpenCodeProtocol { V1, V2 }
@@ -45,6 +47,23 @@ class ProtocolDetectingOpenCodeApi(
 
     private val v1: OpenCodeApiClient = OpenCodeApiClient(profile, httpClient, json)
     private val v2: OpenCodeV2ApiClient = OpenCodeV2ApiClient(profile, httpClient, json)
+
+    /**
+     * The client for the two probe requests (`api/info`, `global/health`): the same connection pool
+     * and settings as [httpClient], but a short whole-call timeout.
+     *
+     * Both answer in milliseconds from any healthy server. `opencode serve` (1.18.5, 1.19.3) accepts
+     * connections a few hundred milliseconds before it attaches its request handler, and Node drops
+     * a request that arrives on such a connection without ever answering it. The local launcher now
+     * waits for a real HTTP answer before reporting Ready (see defaultServerAnswersHttp), but a
+     * remote or restarted server can still hit that window, and a probe stuck there used to hold the
+     * agent picker for the shared 120 s read timeout. A probe that has not answered in a few seconds
+     * is retried on a fresh call instead.
+     */
+    private val probeClient: OkHttpClient =
+        httpClient.newBuilder()
+            .callTimeout(PROBE_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .build()
 
     private val detectedState = MutableStateFlow<OpenCodeProtocol?>(null)
 
@@ -367,8 +386,17 @@ class ProtocolDetectingOpenCodeApi(
                     }
                 }
                 .build()
-        httpClient.newCall(request).execute().use { response ->
-            return ProbeResponse(response.code, response.body?.string().orEmpty())
+        var attempt = 0
+        while (true) {
+            try {
+                probeClient.newCall(request).execute().use { response ->
+                    return ProbeResponse(response.code, response.body?.string().orEmpty())
+                }
+            } catch (timeout: InterruptedIOException) {
+                // A call timeout, not a refused or reset connection: try once more on a new call
+                // before giving up, which surfaces as the usual transient probe failure.
+                if (++attempt > PROBE_TIMEOUT_RETRIES) throw timeout
+            }
         }
     }
 
@@ -398,6 +426,12 @@ class ProtocolDetectingOpenCodeApi(
 
     private companion object {
         const val UNAUTHORIZED_TAG = "UnauthorizedError"
+
+        /** Whole-call limit for one probe request; see [probeClient]. */
+        const val PROBE_CALL_TIMEOUT_SECONDS = 5L
+
+        /** Extra attempts after a probe times out, each on a fresh call. */
+        const val PROBE_TIMEOUT_RETRIES = 1
 
         /** Strict parsing, so an HTML page is never accepted as JSON by the lenient default. */
         val probeJson: Json = Json { ignoreUnknownKeys = true }
