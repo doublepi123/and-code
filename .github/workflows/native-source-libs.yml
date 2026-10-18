@@ -37,6 +37,11 @@ jobs:
       - name: Build Termux native runtime packages from source
         run: bash scripts/build_android_runtime_native_debs.sh --setup --output-dir build/termux-debs
 
+      # termux-packages unpacks each package into $TERMUX_TOPDIR/<name>/src (the script's
+      # default TERMUX_TOPDIR); fail if the proot recipe patch did not end up in that source.
+      - name: Verify the proot seccomp fork patch was applied
+        run: grep -q 'case PR_fork:' /tmp/andcode-termux-build/proot/src/src/tracee/seccomp.c
+
       - name: Materialize native libraries from the source-built packages
         run: |
           python3 scripts/prepare_android_runtime_assets.py \

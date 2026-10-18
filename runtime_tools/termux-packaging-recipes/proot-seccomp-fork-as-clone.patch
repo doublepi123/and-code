@@ -1,0 +1,43 @@
+# Android app seccomp fix for proot: rewrite PR_fork as clone(SIGCHLD, 0, 0, 0, 0).
+#
+# Why: Android's app seccomp policy only allows the fork(2) syscall on 32-bit ABIs.
+# musl on x86_64 calls SYS_fork directly, and PRoot's SIGSYS handler
+# (src/tracee/seccomp.c, handle_seccomp_event_common) returns -ENOSYS for unhandled
+# syscalls, so `apk add` fails with "/bin/sh: can't fork: Function not implemented".
+# fork(2) is equivalent to clone(2) with only SIGCHLD set, on every architecture PRoot
+# supports, so the sysnum and argument rewrite below is safe. arm64 has no SYS_fork and
+# is unaffected.
+#
+# Upstream: https://github.com/termux/proot/pull/415 (from the discussion in
+# https://github.com/termux/proot/issues/237).
+# Remove this patch once the pinned termux/proot version includes an equivalent fix.
+#
+# Applied with `patch -p1` from the proot source directory (termux_step_patch_package
+# applies every *.patch in the package builder directory). Header lines precede the first
+# `diff --git` line so patch ignores them.
+diff --git a/src/tracee/seccomp.c b/src/tracee/seccomp.c
+index 66dfef3..53140e4 100644
+--- a/src/tracee/seccomp.c
++++ b/src/tracee/seccomp.c
+@@ -626,6 +626,21 @@ static int handle_seccomp_event_common(Tracee *tracee)
+ 		break;
+ 	}
+ 
++	case PR_fork:
++		/* Android's app seccomp policy only allows fork(2) on
++		 * 32-bit ABIs, yet musl calls it directly on x86_64.
++		 * fork(2) is clone(2) with just SIGCHLD and no other
++		 * argument, on every architecture PRoot supports (only
++		 * the last two arguments are ever swapped).  */
++		set_sysnum(tracee, PR_clone);
++		poke_reg(tracee, SYSARG_1, SIGCHLD);
++		poke_reg(tracee, SYSARG_2, 0);
++		poke_reg(tracee, SYSARG_3, 0);
++		poke_reg(tracee, SYSARG_4, 0);
++		poke_reg(tracee, SYSARG_5, 0);
++		restart_syscall_after_seccomp(tracee);
++		break;
++
+ 	case PR_set_robust_list:
+ 	default:
+ 		/* Set errno to -ENOSYS */

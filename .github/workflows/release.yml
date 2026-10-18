@@ -52,7 +52,10 @@ jobs:
           path: |
             build/generated/runtime-assets
             build/generated/runtime-jni
-          key: and-code-runtime-${{ runner.os }}-${{ hashFiles('runtime_tools/termux_assets.lock.json', 'runtime_tools/termux_assets.py', 'scripts/prepare_android_runtime_*.py') }}
+          # Separate key from the mirror-derived cache used by CI: this job generates the runtime
+          # assets from the source-built .deb files (see the build step below), and the source
+          # recipes/script are part of the key so a cached mirror-derived payload is never reused.
+          key: and-code-runtime-source-${{ runner.os }}-${{ hashFiles('runtime_tools/termux_assets.lock.json', 'runtime_tools/termux_assets.py', 'scripts/prepare_android_runtime_*.py', 'scripts/build_android_runtime_native_debs.sh', 'runtime_tools/termux-packaging-recipes/**') }}
 
       - name: Decode release keystore
         env:
@@ -80,19 +83,20 @@ jobs:
           if [ -z "$GITHUB_CLIENT_ID" ]; then
             echo "::warning::AND_CODE_GITHUB_CLIENT_ID repo variable is not set - the published APK will have no GitHub sign-in"
           fi
-           ./gradlew detekt spotlessCheck :app:lintGithubDebug :app:testGithubDebugUnitTest assembleGithubDebug assembleGithubRelease
+          # The native runtime payload (proot, libtalloc, libandroid-shmem) is compiled first from
+          # the pinned Termux recipes with the NDK, so the github APKs carry the source-built proot
+          # (including the seccomp fork fix in runtime_tools/termux-packaging-recipes/) instead of
+          # the Termux mirror prebuilts. This must match the fdroiddata recipe
+          # (srclibs: TermuxPackages@<commit>, ndk: r29).
+          bash scripts/build_android_runtime_native_debs.sh --setup --output-dir build/termux-debs
+          ./gradlew detekt spotlessCheck :app:lintGithubDebug :app:testGithubDebugUnitTest \
+            -Pandcode.sourceNativeLibs=true assembleGithubDebug assembleGithubRelease
           # Separate invocation, deliberately without GITHUB_CLIENT_ID: this is the same flavor and
           # signing config F-Droid's own build server produces (gradleprops: andcode.fdroidBuild=true,
           # no client ID), so this asset is what fdroiddata's Binaries:/AllowedAPKSigningKeys: verify
           # a reproducible build against - it must be built exactly the way F-Droid builds it.
           # GITHUB_CLIENT_ID is set at step level above, so it must be unset here explicitly:
           # otherwise it is baked into BuildConfig and classes.dex no longer matches F-Droid's.
-          #
-          # The fdroid APK is built the way F-Droid's build server builds it, including the
-          # native runtime payload: proot, libtalloc and libandroid-shmem are compiled from
-          # the pinned Termux recipes with the NDK here so no prebuilt binary is downloaded.
-          # This must match the fdroiddata recipe (srclibs: TermuxPackages@<commit>, ndk: r29).
-          bash scripts/build_android_runtime_native_debs.sh --setup --output-dir build/termux-debs
           env -u GITHUB_CLIENT_ID ./gradlew -Pandcode.fdroidBuild=true -Pandcode.sourceNativeLibs=true :app:assembleFdroidRelease
 
       - name: Resolve tag

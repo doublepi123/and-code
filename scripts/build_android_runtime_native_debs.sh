@@ -11,6 +11,9 @@
 #
 # Adapted from gwitko/Conduit's tools/build-local-shell-binaries.sh (same Termux +
 # NDK approach); the recipe patches are the ones that environment is known to need.
+# Besides the termux-packages edits above, the proot recipe gets an extra patch from
+# runtime_tools/termux-packaging-recipes/proot-seccomp-fork-as-clone.patch (rewrites SYS_fork
+# to clone for the Android app seccomp policy; needed for x86_64 `apk add` to fork).
 #
 # Inputs (environment):
 #   TERMUX_PACKAGES_DIR      An existing termux-packages checkout (an F-Droid srclib).
@@ -131,6 +134,14 @@ patch_toolchain() {
 patch_setup_ubuntu
 patch_buildarch
 patch_toolchain
+
+# PRoot recipe patch (see runtime_tools/termux-packaging-recipes/proot-seccomp-fork-as-clone.patch):
+# Android's app seccomp policy only allows fork(2) on 32-bit ABIs, so the x86_64 build needs
+# SYS_fork rewritten to clone(). termux_step_patch_package applies every *.patch in the package
+# builder directory, so copy it there. The file is untracked, so cp -f simply overwrites it on
+# re-runs (checkout -f above resets only tracked files).
+cp -f "$REPO_ROOT/runtime_tools/termux-packaging-recipes/proot-seccomp-fork-as-clone.patch" \
+  "$TERMUX_PACKAGES_DIR/packages/proot/"
 
 if [ "$SETUP_UBUNTU" -eq 1 ]; then
   termux_env bash "$TERMUX_PACKAGES_DIR/scripts/setup-ubuntu.sh"
