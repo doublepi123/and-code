@@ -8,6 +8,11 @@
 # supports, so the sysnum and argument rewrite below is safe. arm64 has no SYS_fork and
 # is unaffected.
 #
+# Register note: only the parent's registers are restored after the seccomp rewrite, so the
+# child of the rewritten clone starts with rdi=SIGCHLD and rsi/rdx/r10/r8 zeroed. musl's x86_64
+# _Fork only reads %rax after the syscall, and glibc uses clone(2) directly, so this is harmless
+# in practice.
+#
 # Upstream: https://github.com/termux/proot/pull/415 (from the discussion in
 # https://github.com/termux/proot/issues/237).
 # Remove this patch once the pinned termux/proot version includes an equivalent fix.

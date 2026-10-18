@@ -7,13 +7,22 @@ source code.** See [TRADEMARKS.md](TRADEMARKS.md) for trademark notices.
 
 ## Bundled native runtime components (PRoot / Termux-derived)
 
-These binaries reach the APK one of two ways. The **github** flavor downloads them from the official
-Termux package mirror at build time (pinned by package version and SHA-256 hash of the compiled
-`.deb` in [`runtime_tools/termux_assets.lock.json`](runtime_tools/termux_assets.lock.json)). The
-**fdroid** flavor compiles the same three Termux packages from source with the Android NDK, from the
-pinned `termux-packages` commit declared by the fdroiddata recipe's `srclibs:` (`TermuxPackages`).
-Either way they are packaged into the APK so the on-device Linux runtime can start, and AndCode does
-not patch or modify these packages beyond what Termux's own packaging performs. **Full license text
+Release APKs (both the **github** and **fdroid** flavors) build these three packages from source with the
+Android NDK r29, using the pinned Termux package recipes: `proot`, `libtalloc` and `libandroid-shmem`
+are compiled from the `termux-packages` commit pinned in
+[`scripts/build_android_runtime_native_debs.sh`](scripts/build_android_runtime_native_debs.sh). The
+`proot` recipe is overridden to the 5.1.107.96 build in
+[`runtime_tools/termux-packaging-recipes/proot.build.sh`](runtime_tools/termux-packaging-recipes/proot.build.sh).
+Local and CI developer builds instead download the prebuilt packages from the official Termux package
+mirror, pinned by package version and SHA-256 hash of the compiled `.deb` in
+[`runtime_tools/termux_assets.lock.json`](runtime_tools/termux_assets.lock.json). Either way they are
+packaged into the APK so the on-device Linux runtime can start. AndCode applies one modification to
+`proot`: [`proot-seccomp-fork-as-clone.patch`](runtime_tools/termux-packaging-recipes/proot-seccomp-fork-as-clone.patch),
+which makes PRoot run `fork(2)` as `clone(SIGCHLD)` when Android's app seccomp policy rejects `fork`
+(needed on x86_64, where musl calls `SYS_fork` directly). It is proposed upstream as
+[termux/proot#415](https://github.com/termux/proot/pull/415). This paragraph is the GPL-2.0 §2(a)
+notice of that modification for the `proot` binary. Packages other than `proot` are not modified
+beyond Termux's own packaging. **Full license text
 for each of GPL-2.0, GPL-3.0 (which LGPL-3.0 incorporates by reference), LGPL-3.0, and the
 BSD-3-Clause text used by `libandroid-shmem` is bundled verbatim, unmodified, in
 [`THIRD_PARTY_LICENSES/`](THIRD_PARTY_LICENSES/) in this repository and at
@@ -25,8 +34,9 @@ BSD-3-Clause text used by `libandroid-shmem` is bundled verbatim, unmodified, in
 | `libandroid-shmem` | 0.7 | [BSD-3-Clause](THIRD_PARTY_LICENSES/BSD-3-Clause-libandroid-shmem.txt), per [`TERMUX_PKG_LICENSE`](runtime_tools/termux-packaging-recipes/libandroid-shmem.build.sh) and the project's own `LICENSE` file | Copyright (c) 2013 Sergii Pylypenko; Copyright (c) 2017 Fredrik Fornwall | Upstream source archive `v0.7.tar.gz`, SHA-256 `1e5ff8459bc0a8c229dd8a94b27d119987e09ef3414331c2b5ebfff20b98e867` (from [github.com/termux/libandroid-shmem](https://github.com/termux/libandroid-shmem/archive/refs/tags/v0.7.tar.gz), tagged release, not `master`) |
 | `libtalloc` | 2.5.0 | [LGPL-3.0-or-later](THIRD_PARTY_LICENSES/LGPL-3.0.txt) for the actual runtime library. Termux's own packaging metadata tags the *package* `GPL-3.0` (a coarser, package-level tag), but the shared library source itself (`talloc.c`/`talloc.h`, the only files that become `libtalloc.a`/`libtalloc.so`) carries its own header: *"the following LGPL license applies to the talloc library. This does NOT imply that all of Samba is released under the LGPL"* — version 3 or later. Resolved; no longer `REQUIRES_LICENSE_REVIEW`. | Copyright (C) Andrew Tridgell 2004; Copyright (C) Stefan Metzmacher 2006 | Upstream source archive `talloc-2.5.0.tar.gz`, SHA-256 `912afa237510ae542a7733998eb18a12bcda35ab6729c8e2ddb43e8d0ebab007` (from [samba.org/ftp/talloc](https://www.samba.org/ftp/talloc/talloc-2.5.0.tar.gz), versioned release path, not a mutable branch) |
 
-The fdroid flavor compiles all three from the pinned `TermuxPackages` commit, which can lag the
-mirror by a version or two (currently `proot` 5.1.107.94, `libtalloc` 2.4.3, `libandroid-shmem` 0.7).
+The source build compiles `libtalloc` and `libandroid-shmem` from the pinned `TermuxPackages` commit,
+which can lag the mirror by a version or two (currently `libtalloc` 2.4.3, `libandroid-shmem` 0.7).
+Its `proot` recipe is overridden to 5.1.107.96 as described above.
 
 **Packaging recipes, mirrored (not just linked):** the exact `TERMUX_PKG_*` build recipe used for
 each package above — the thing that actually produces the `.deb` pinned by hash in
