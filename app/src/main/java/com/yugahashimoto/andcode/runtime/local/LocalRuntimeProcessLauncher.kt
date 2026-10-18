@@ -211,6 +211,8 @@ class LocalRuntimeProcessLauncher(
         logFile: File,
     ) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30)
+        // Each attempt can take up to ~2 s (connect + read), so the last one may end slightly after
+        // the deadline.
         while (System.nanoTime() < deadline) {
             if (!process.isAlive) {
                 error("Local OpenCode exited during startup: ${tail(logFile)}")
@@ -218,6 +220,10 @@ class LocalRuntimeProcessLauncher(
             if (serverReady(port)) return
             Thread.sleep(250)
         }
+        // A loaded device can be slow to answer HTTP even once the server is up. Stopping a live,
+        // listening server here would turn that into a failed start, so it keeps the old,
+        // connect-only verdict as the last word; the protocol probe's own timeout covers the rest.
+        if (process.isAlive && portProbe(port)) return
         process.destroyForcibly()
         process.waitFor(2, TimeUnit.SECONDS)
         runCatching { process.outputStream.close() }

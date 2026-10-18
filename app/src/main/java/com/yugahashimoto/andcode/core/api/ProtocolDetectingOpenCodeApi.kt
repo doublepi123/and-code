@@ -65,6 +65,15 @@ class ProtocolDetectingOpenCodeApi(
             .callTimeout(PROBE_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
 
+    /**
+     * The retry gets longer: a remote host behind a tunnel, or one that is waking up, can be slow to
+     * answer its first request, and it must not fail where the shared client used to succeed.
+     */
+    private val probeRetryClient: OkHttpClient =
+        httpClient.newBuilder()
+            .callTimeout(PROBE_RETRY_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .build()
+
     private val detectedState = MutableStateFlow<OpenCodeProtocol?>(null)
 
     /** Serialises probes so a slower, older probe cannot overwrite the result of a newer one. */
@@ -389,7 +398,8 @@ class ProtocolDetectingOpenCodeApi(
         var attempt = 0
         while (true) {
             try {
-                probeClient.newCall(request).execute().use { response ->
+                val client = if (attempt == 0) probeClient else probeRetryClient
+                client.newCall(request).execute().use { response ->
                     return ProbeResponse(response.code, response.body?.string().orEmpty())
                 }
             } catch (timeout: InterruptedIOException) {
@@ -429,6 +439,9 @@ class ProtocolDetectingOpenCodeApi(
 
         /** Whole-call limit for one probe request; see [probeClient]. */
         const val PROBE_CALL_TIMEOUT_SECONDS = 5L
+
+        /** Whole-call limit for the retry after a probe timed out; see [probeRetryClient]. */
+        const val PROBE_RETRY_CALL_TIMEOUT_SECONDS = 20L
 
         /** Extra attempts after a probe times out, each on a fresh call. */
         const val PROBE_TIMEOUT_RETRIES = 1

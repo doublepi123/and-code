@@ -532,7 +532,7 @@ class LocalRuntimeProcessLauncherTest {
         // What `opencode serve` does for the first few hundred milliseconds: the kernel accepts the
         // connection, but nothing ever reads the request or replies.
         ServerSocket(0, 1, InetAddress.getLoopbackAddress()).use { listener ->
-            val accepted = mutableListOf<Socket>()
+            val accepted = java.util.concurrent.CopyOnWriteArrayList<Socket>()
             val acceptor = Thread { runCatching { while (true) accepted += listener.accept() } }.apply { isDaemon = true }
             acceptor.start()
 
