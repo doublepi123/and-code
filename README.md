@@ -243,6 +243,8 @@ Install to device:
 adb install -r app/build/outputs/apk/github/debug/app-github-debug.apk
 ```
 
+Debug builds (including the `-debug.apk` attached to releases) install as a separate app, `com.doublepi123.andcode.debug` ("DoubleCode Debug", bug badge on the icon), with its own data and local OpenCode port 4099. They do not upgrade or share data with the release app. Signing in to the same OAuth provider (Codex, Antigravity) from both apps at the same time can collide on its fixed localhost callback port.
+
 ## Documentation
 
 - [On-Device Runtime Design](docs/LOCAL_RUNTIME.md)

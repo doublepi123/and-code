@@ -9,7 +9,9 @@ class ReleaseMetadataTest {
     fun `android package metadata matches the release tag`() {
         val releaseVersion = repositoryRoot().resolve(".release-version").readText().trim().removePrefix("v")
 
-        assertEquals(releaseVersion, BuildConfig.VERSION_NAME)
+        // Debug builds carry a "-debug" suffix (versionNameSuffix) so they are told apart on device.
+        val expected = if (BuildConfig.DEBUG) "$releaseVersion-debug" else releaseVersion
+        assertEquals(expected, BuildConfig.VERSION_NAME)
         assertEquals(66, BuildConfig.VERSION_CODE)
     }
 

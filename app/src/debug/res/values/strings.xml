@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Debug builds install beside the release app, so they need their own launcher name. The
+         values-*/ copies are required: main's localized app_name would otherwise win over this
+         default-locale one on non-English devices. -->
+    <string name="app_name" translatable="false">DoubleCode Debug</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug build only: the release icon plus a bug badge, on the themed (monochrome) icon too. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_debug_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_debug_monochrome" />
+</adaptive-icon>

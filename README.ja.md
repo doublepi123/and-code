@@ -243,6 +243,8 @@ app/build/outputs/apk/github/release/app-github-release-unsigned.apk
 adb install -r app/build/outputs/apk/github/debug/app-github-debug.apk
 ```
 
+debug ビルド（リリースに添付される `-debug.apk` を含む）は別アプリ `com.doublepi123.andcode.debug`（「DoubleCode Debug」、アイコンに虫のバッジ）としてインストールされ、データとローカル OpenCode のポート（4099）も別です。release 版を上書きせず、データも共有しません。両方のアプリで同じ OAuth プロバイダ（Codex、Antigravity）に同時にサインインすると、固定の localhost コールバックポートが衝突することがあります。
+
 ## ドキュメント
 
 - [オンデバイスランタイム設計](docs/LOCAL_RUNTIME.md)
