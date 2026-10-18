@@ -29,16 +29,23 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
     }
 }
 
+// Build directories are excluded from the walk itself, not just filtered afterwards: the release
+// job checks out termux-packages under build/, and following its dangling symlinks fails the task.
+// Going back to target("**/*.kt") + targetExclude would bring that failure back.
+fun spotlessSources(pattern: String) =
+    fileTree(rootDir) {
+        include(pattern)
+        exclude("**/build/**", "**/.gradle/**", ".worktree/**")
+    }
+
 spotless {
     kotlin {
-        target("**/*.kt")
-        targetExclude("**/build/**")
+        target(spotlessSources("**/*.kt"))
         ktlint("1.2.1")
             .setEditorConfigPath("$rootDir/.editorconfig")
     }
     kotlinGradle {
-        target("**/*.gradle.kts")
-        targetExclude("**/build/**")
+        target(spotlessSources("**/*.gradle.kts"))
         ktlint("1.2.1")
     }
 }
