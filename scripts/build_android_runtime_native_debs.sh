@@ -11,6 +11,9 @@
 #
 # Adapted from gwitko/Conduit's tools/build-local-shell-binaries.sh (same Termux +
 # NDK approach); the recipe patches are the ones that environment is known to need.
+# The proot recipe is overridden with runtime_tools/termux-packaging-recipes/proot.build.sh
+# (5.1.107.96, the lock-pinned version) and gets one extra patch,
+# proot-seccomp-fork-as-clone.patch, which is needed for x86_64 `apk add` to fork.
 #
 # Inputs (environment):
 #   TERMUX_PACKAGES_DIR      An existing termux-packages checkout (an F-Droid srclib).
@@ -131,6 +134,19 @@ patch_toolchain() {
 patch_setup_ubuntu
 patch_buildarch
 patch_toolchain
+
+# PRoot recipe. The pinned termux-packages commit still builds proot 5.1.107.94, but the
+# lock-pinned mirror (and so the expected github/fdroid version) is 5.1.107.96. The .96 bump
+# (de396619) also moved the toolchain to NDK r30 and removed termux_setup_toolchain_29.sh, so the
+# pinned commit cannot simply be bumped. Instead the packages/proot recipe is overridden with the
+# mirrored 5.1.107.96 build.sh. The fork patch applies unchanged to both versions because
+# src/tracee/seccomp.c is identical in .94 and .96. Stale untracked files are removed first.
+# termux_step_patch_package applies every *.patch in the package builder directory.
+git -C "$TERMUX_PACKAGES_DIR" clean -fdq -- packages/proot
+cp -f "$REPO_ROOT/runtime_tools/termux-packaging-recipes/proot.build.sh" \
+  "$TERMUX_PACKAGES_DIR/packages/proot/build.sh"
+cp -f "$REPO_ROOT/runtime_tools/termux-packaging-recipes/proot-seccomp-fork-as-clone.patch" \
+  "$TERMUX_PACKAGES_DIR/packages/proot/"
 
 if [ "$SETUP_UBUNTU" -eq 1 ]; then
   termux_env bash "$TERMUX_PACKAGES_DIR/scripts/setup-ubuntu.sh"

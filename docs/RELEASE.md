@@ -124,6 +124,10 @@ NDK is needed). `Pandcode.fdroidBuild=true` additionally skips applying the
 (they process `google-services.json` project-wide regardless of flavor, so leaving them
 applied would still embed inert Google project identifiers in the fdroid build).
 
+The Release workflow now builds the `github` release APKs from the same source-built native payload
+(with the `proot` recipe override and the seccomp fork patch), not from the Termux mirror prebuilts.
+Local and CI dev builds still use the mirror path.
+
 Submitting to the official catalog means opening a merge request against
 [fdroiddata](https://gitlab.com/fdroid/fdroiddata). This has been done:
 [!48005](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/48005). The
