@@ -1,6 +1,7 @@
 package com.yugahashimoto.andcode.runtime.local
 
 import android.content.Context
+import com.yugahashimoto.andcode.BuildConfig
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -16,6 +17,9 @@ data class LocalRuntimeManifest(
 ) {
     fun architecture(abi: String): LocalRuntimeArchitecture =
         requireNotNull(architectures[abi]) { "Local runtime does not support ABI $abi" }
+
+    /** This manifest with [port] replaced by [override], or unchanged when [override] is 0. */
+    fun withPortOverride(override: Int): LocalRuntimeManifest = if (override == 0) this else copy(port = override)
 
     fun validate() {
         require(schemaVersion == 1) { "Unsupported local runtime manifest schema: $schemaVersion" }
@@ -53,13 +57,15 @@ class LocalRuntimeManifestReader(
             ignoreUnknownKeys = true
             isLenient = true
         },
+    /** Replaces the manifest's port when non-zero, so a debug build can run beside a release one. */
+    private val portOverride: Int = BuildConfig.LOCAL_RUNTIME_PORT_OVERRIDE,
 ) {
     /** The local server port this build uses; see [LocalRuntimeManifest.port]. */
     fun port(): Int = read().port
 
     fun read(): LocalRuntimeManifest {
         val payload = context.assets.open(ASSET_NAME).bufferedReader().use { it.readText() }
-        return json.decodeFromString<LocalRuntimeManifest>(payload).also { it.validate() }
+        return json.decodeFromString<LocalRuntimeManifest>(payload).withPortOverride(portOverride).also { it.validate() }
     }
 
     companion object {

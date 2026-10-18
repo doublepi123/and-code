@@ -128,6 +128,8 @@ android {
         versionCode = 66
         versionName = "1.2.27-dp7"
         buildConfigField("String", "GITHUB_CLIENT_ID", "\"$githubClientId\"")
+        // 0 keeps the port from the bundled runtime manifest; the debug build type sets its own.
+        buildConfigField("int", "LOCAL_RUNTIME_PORT_OVERRIDE", "0")
 
         // The on-device runtime (see ANDROID_ABIS in scripts/prepare_android_runtime_native_libs.py)
         // only exists for these two ABIs. Without the filter JNA and Vosk drag in libraries for
@@ -180,6 +182,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Installs beside the release build: its own package (data, runtime, password), its
+            // own local OpenCode port, and its own launcher name and badged icon (src/debug/res).
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            buildConfigField("int", "LOCAL_RUNTIME_PORT_OVERRIDE", "4099")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

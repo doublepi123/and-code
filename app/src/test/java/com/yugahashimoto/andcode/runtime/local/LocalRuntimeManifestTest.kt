@@ -31,6 +31,22 @@ class LocalRuntimeManifestTest {
     }
 
     @Test
+    fun `port override replaces the manifest port only when set`() {
+        val manifest =
+            LocalRuntimeManifest(
+                schemaVersion = 1,
+                runtimeVersion = "2026.07.18.1",
+                openCodeVersion = "1.18.3",
+                alpineVersion = "3.24.1",
+                port = 4098,
+                architectures = mapOf("arm64-v8a" to architecture),
+            )
+
+        assertEquals(4098, manifest.withPortOverride(0).port)
+        assertEquals(4099, manifest.withPortOverride(4099).port)
+    }
+
+    @Test
     fun `manifest rejects insecure download URL`() {
         val invalid = architecture.copy(alpineUrl = "http://example.com/alpine.tar.gz")
 
