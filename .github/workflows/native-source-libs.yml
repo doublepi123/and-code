@@ -35,12 +35,19 @@ jobs:
           python-version: "3.11"
 
       - name: Build Termux native runtime packages from source
-        run: bash scripts/build_android_runtime_native_debs.sh --setup --output-dir build/termux-debs
+        run: |
+          set -o pipefail
+          mkdir -p build
+          bash scripts/build_android_runtime_native_debs.sh --setup --output-dir build/termux-debs \
+            2>&1 | tee build/termux-build.log
 
-      # termux-packages unpacks each package into $TERMUX_TOPDIR/<name>/src (the script's
-      # default TERMUX_TOPDIR); fail if the proot recipe patch did not end up in that source.
-      - name: Verify the proot seccomp fork patch was applied
-        run: grep -q 'case PR_fork:' /tmp/andcode-termux-build/proot/src/src/tracee/seccomp.c
+      # The script overrides the pinned commit's proot recipe with the lock-pinned 5.1.107.96 and
+      # adds the seccomp fork patch; fail if either did not take effect for both architectures.
+      - name: Verify the proot recipe override and fork patch
+        run: |
+          set -euo pipefail
+          test "$(ls build/termux-debs/*/proot_5.1.107.96_*.deb | wc -l)" -eq 2
+          test "$(grep -c 'Applying patch: proot-seccomp-fork-as-clone.patch' build/termux-build.log)" -eq 2
 
       - name: Materialize native libraries from the source-built packages
         run: |

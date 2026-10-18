@@ -6,7 +6,6 @@
 # runtime_tools/termux_assets.lock.json.
 #
 # Contributor: @michalbednarski
-# Note: scripts/build_android_runtime_native_debs.sh also copies this file over packages/proot/build.sh of the pinned termux-packages commit (which still has 5.1.107.94) for source builds.
 TERMUX_PKG_HOMEPAGE=https://proot-me.github.io/
 TERMUX_PKG_DESCRIPTION="Emulate chroot, bind mount and binfmt_misc for non-root users"
 TERMUX_PKG_LICENSE="GPL-2.0"
